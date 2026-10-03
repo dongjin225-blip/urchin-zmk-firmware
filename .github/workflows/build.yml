@@ -2,4 +2,7 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@main
+    # Keep the reusable workflow aligned with the firmware release selected
+    # in config/west.yml.  The latest workflow rejects legacy board names even
+    # though ZMK v0.3 builds them successfully.
+    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3
