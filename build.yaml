@@ -3,7 +3,15 @@ include:
   - board: nice_nano_v2
     shield: urchin_left
     cmake-args: -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
-    # The right half only sends key positions. Normal keymap updates require
-    # flashing this central image only; rebuilding the peripheral needlessly
-    # tears down the split BLE bond during every update.
-    artifact-name: urchin_left_UPDATE_THIS_ONLY
+    artifact-name: 1_urchin_left
+  # Both halves must run the same ZMK release.  This image is required once
+  # for the v0.3 migration; otherwise the peripheral cannot talk to central.
+  - board: nice_nano_v2
+    shield: urchin_right
+    artifact-name: 2_urchin_right
+  # Clears stale Bluetooth identities and split bonds left behind by the
+  # earlier Zephyr 4.1 builds. Flash this to both halves before the two images
+  # above, then remove the old Windows device and pair once.
+  - board: nice_nano_v2
+    shield: settings_reset
+    artifact-name: 0_SETTINGS_RESET_FLASH_BOTH_FIRST
