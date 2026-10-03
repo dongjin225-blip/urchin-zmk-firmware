@@ -24,25 +24,27 @@ manifest:
   projects:
     - name: zmk
       remote: zmkfirmware
-      revision: main
+      # Pin known-good sources so a keymap rebuild does not silently change
+      # the Bluetooth stack or split protocol underneath the firmware.
+      revision: 5b51501fead672c41b5cfb396f3dafe0894bf4e9
       import: app/west.yml
     - name: urchin-zmk-module
       remote: duckyb
-      revision: main
+      revision: a3ab64fa7779f82675695f3d7d17f705f840da25
     - name: nice-view-gem
       remote: m165437
-      revision: main
+      revision: 0a50fe209d929c916c5664c6affd0f4977c6b012
     - name: zmk-rgbled-widget
       remote: caksoylar
-      revision: main
+      revision: e6b467792a1dabef8cfa5c9fd26bfefc9c16662b
     - name: zmk-behavior-battery-percentage-printer
       remote: badjeff
-      revision: main
+      revision: e111cbc6ac66caaa157daeb58eda3c8e2b43153a
     - name: zmk-adaptive-key
       remote: urob
-      revision: main # set to same as ZMK version above      
+      revision: e987227d625e8863343baf16bd11ff90310482a5
     - name: zmk-poor-mans-led-indicator
       remote: eyesonly
-      revision: main
+      revision: 6f9433df6291d95a7682b05e8252e1762d735e7b
 self:
     path: config
