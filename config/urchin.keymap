@@ -281,38 +281,59 @@
                 bindings = <&kp DOT &kp SLASH>;
             };
         };
+
+        hm_combo: hm_combo {
+            compatible = "zmk,behavior-hold-tap";
+            label = "HM_COMBO";
+            bindings = <&kp>, <&kp>;
+
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            quick-tap-ms = <200>;
+            require-prior-idle-ms = <100>;
+            flavor = "balanced";
+            hold-trigger-on-release;
+            hold-trigger-key-positions = <5 6 7 8 9 15 16 17 18 19 25 26 27 28 29 32 33 4 14 24 30 10 20 21 22 23 24 30 31 0 1 2 3 11 12 13>;
+        };
+
+        new_behavior: new_behavior {
+            compatible = "zmk,behavior-hold-tap";
+            label = "NEW_BEHAVIOR";
+            bindings = <&kp>, <&kp>;
+
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            quick-tap-ms = <200>;
+            require-prior-idle-ms = <100>;
+            flavor = "balanced";
+            hold-trigger-on-release;
+        };
     };
 
     macros {
         // sometimes my device thinks a modifier is being held down
         // pressing all modifiers fixes it.
 
-        unstick: unstick {
-            label = "ZM_unstick";
+        dj: dj {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LSHIFT &kp RSHIFT &kp LCTRL &kp RCTRL &kp LALT &kp RALT &kp LGUI &kp RGUI>;
+            bindings = <&kp I &kp O &kp P &kp ASTERISK &kp NUMBER_6 &kp NUMBER_4 &kp NUMBER_3 &kp N5 &kp NUMBER_1 &kp N8 &kp ENTER>;
+            label = "DJ";
         };
 
-        other_window: other_window {
+        dj2: dj2 {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LC(X) &kp O>;
-            label = "OTHER_WINDOW";
+            bindings = <&kp NUMBER_3 &kp N5 &kp NUMBER_1 &kp N8>;
+            label = "DJ2";
         };
 
-        kill_buffer: kill_buffer {
+        sleep: sleep {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LC(X) &kp K>;
-            label = "KILL_BUFFER";
-        };
-
-        save_buffer: save_buffer {
-            compatible = "zmk,behavior-macro";
-            #binding-cells = <0>;
-            bindings = <&kp LC(X) &kp LC(S)>;
-            label = "SAVE_BUFFER";
+            bindings = <&kp LG(X) &kp U &kp S>;
+            label = "SLEEP";
+            wait-ms = <1000>;
         };
     };
 
@@ -325,73 +346,169 @@
         // left index & middle fingers (home-row)
         // hold control & space for Adobe workflow
 
-        combo_caps {
+        esc {
+            bindings = <&hm_combo DEL ESCAPE>;
+            key-positions = <0 1>;
+        };
+
+        ex {
+            bindings = <&kp EXCLAMATION>;
+            key-positions = <15 16>;
+        };
+
+        slash_quet {
+            bindings = <&kp LS(SLASH)>;
+            key-positions = <16 25>;
+        };
+
+        minus {
+            bindings = <&kp MINUS>;
+            key-positions = <3 12>;
+        };
+
+        plus {
+            bindings = <&kp EQUAL>;
+            key-positions = <3 2>;
+        };
+
+        space_l {
+            bindings = <&kp SPACE>;
+            key-positions = <12 13>;
+        };
+
+        enter_l {
+            bindings = <&kp ENTER>;
+            key-positions = <11 12>;
+        };
+
+        enter_r {
+            bindings = <&kp ENTER>;
+            key-positions = <17 18>;
+        };
+
+        brace_r {
+            bindings = <&hm_combo RIGHT_BRACKET RIGHT_PARENTHESIS>;
+            key-positions = <17 8>;
+        };
+
+        brace_l {
+            bindings = <&hm_combo LEFT_BRACKET LEFT_PARENTHESIS>;
+            key-positions = <1 12>;
+        };
+
+        tap {
+            bindings = <&kp TAB>;
+            key-positions = <2 13>;
+        };
+
+        grave {
+            bindings = <&kp GRAVE>;
+            key-positions = <2 11>;
+        };
+
+        del_l {
+            bindings = <&kp DEL>;
+            key-positions = <24 13>;
+        };
+
+        del_r {
+            bindings = <&kp DEL>;
+            key-positions = <16 25>;
+        };
+
+        capture {
+            bindings = <&kp LG(LS(S))>;
+            key-positions = <4 3>;
+        };
+
+        vup {
+            bindings = <&kp C_VOLUME_UP>;
+            key-positions = <27 28>;
+        };
+
+        vdn {
+            bindings = <&kp C_VOLUME_DOWN>;
+            key-positions = <27 26>;
+        };
+
+        mute {
+            bindings = <&kp K_MUTE>;
+            key-positions = <26 28>;
+        };
+
+        wintab {
+            bindings = <&kp LG(TAB)>;
+            key-positions = <2 13 24>;
+        };
+
+        caps {
             bindings = <&kp CAPSLOCK>;
-            key-positions = <26 27>;
-            layers = <0>;
-            timeout-ms = <50>;
-            require-prior-idle-ms = <1>;
+            key-positions = <10 11>;
         };
 
-        alt_f4 {
+        num1 {
+            bindings = <&kp NUMBER_1>;
+            key-positions = <24 0>;
+        };
+
+        num2 {
+            bindings = <&kp NUMBER_2>;
+            key-positions = <24 1>;
+        };
+
+        num3 {
+            bindings = <&kp NUMBER_3>;
+            key-positions = <24 2>;
+        };
+
+        num4 {
+            bindings = <&kp NUMBER_4>;
+            key-positions = <24 3>;
+        };
+
+        num5 {
+            bindings = <&kp N5>;
+            key-positions = <24 4>;
+        };
+
+        num6 {
+            bindings = <&kp NUMBER_6>;
+            key-positions = <30 10>;
+        };
+
+        num7 {
+            bindings = <&kp N7>;
+            key-positions = <30 11>;
+        };
+
+        num8 {
+            bindings = <&kp N8>;
+            key-positions = <30 12>;
+        };
+
+        num9 {
+            bindings = <&kp N9>;
+            key-positions = <30 13>;
+        };
+
+        num0 {
+            bindings = <&kp N0>;
+            key-positions = <30 14>;
+        };
+
+        workman {
+            bindings = <&kp LS(LC(ESC))>;
+            key-positions = <24 1 0>;
+        };
+
+        altfb4 {
             bindings = <&kp LA(F4)>;
-            key-positions = <9 29>;
+            key-positions = <24 3 2>;
         };
 
-        to_emacs {
-            bindings = <&tog 0>;
-            key-positions = <23 30>;
-            layers = <0>;
-            timeout-ms = <50>;
-            require-prior-idle-ms = <1>;
-        };
-
-        to_func {
-            bindings = <&tog 0>;
-            key-positions = <31 32>;
-            layers = <0>;
-            timeout-ms = <50>;
-            require-prior-idle-ms = <1>;
-        };
-
-        momentary_functional_layer {
-            bindings = <&mo 0>;
-            key-positions = <32 33>;
-        };
-
-        Momentary_Emacs_layer {
-            bindings = <&mo 0>;
-            key-positions = <31 30>;
-        };
-
-        to_num {
-            bindings = <&to 0>;
-            key-positions = <6 33>;
-        };
-
-        bootloader {
-            bindings = <&bootloader>;
-            key-positions = <29 0 1>;
-        };
-
-        alt-x {
-            bindings = <&kp RA(X)>;
-            key-positions = <32 21>;
-        };
-
-        control-x {
-            bindings = <&kp RC(X)>;
-            key-positions = <33 21>;
-        };
-
-        bootloader2 {
-            bindings = <&bootloader>;
-            key-positions = <5 6 29>;
-        };
-
-        soft_off_combo {
-            bindings = <&soft_off>;
-            key-positions = <14 15 16>;
+        wind {
+            bindings = <&kp LG(D)>;
+            key-positions = <24 3 4>;
         };
     };
 
@@ -419,18 +536,18 @@
 
         num {
             bindings = <
-&trans       &kp F7  &kp F8  &kp F9  &trans  &trans  &kp N7  &kp N8  &kp N9  &trans
-&trans       &kp F4  &kp F5  &kp F6  &trans  &trans  &kp N4  &kp N5  &kp N6  &trans
-&bootloader  &kp F1  &kp F2  &kp F3  &trans  &kp N0  &kp N1  &kp N2  &kp N3  &bootloader
-                             &trans  &trans  &trans  &trans
+&dj2         &kp F7  &kp F8  &kp F9  &trans  &trans          &hmr LS(N7) N7              &hmr LS(N8) N8              &hmr LS(N9) N9        &trans
+&dj          &kp F4  &kp F5  &kp F6  &trans  &trans          &hmr LS(N4) NUMBER_4        &hmr LS(N5) N5              &hmr LS(N6) NUMBER_6  &trans
+&bootloader  &kp F1  &kp F2  &kp F3  &trans  &hmr LS(N0) N0  &hmr LS(NUMBER_1) NUMBER_1  &hmr LS(NUMBER_2) NUMBER_2  &hml LS(N3) NUMBER_3  &bootloader
+                             &trans  &trans  &trans          &trans
             >;
         };
 
         nav {
             bindings = <
+&trans  &trans  &trans  &trans  &trans  &trans  &trans    &trans        &trans     &trans
 &trans  &trans  &trans  &trans  &trans  &trans  &trans    &kp UP_ARROW  &trans     &trans
 &trans  &trans  &trans  &trans  &trans  &trans  &kp LEFT  &kp DOWN      &kp RIGHT  &trans
-&trans  &trans  &trans  &trans  &trans  &trans  &trans    &trans        &trans     &trans
                         &trans  &trans  &trans  &trans
             >;
         };
