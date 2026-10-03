@@ -511,6 +511,16 @@
             bindings = <&kp LG(D)>;
             key-positions = <24 3 4>;
         };
+
+        back {
+            bindings = <&kp BACKSPACE>;
+            key-positions = <16 17>;
+        };
+
+        backl {
+            bindings = <&kp BACKSPACE>;
+            key-positions = <22 13>;
+        };
     };
 
     keymap {
