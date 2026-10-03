@@ -2,7 +2,6 @@
 include:
   - board: nice_nano@2.0.0
     shield: urchin_left
-    snippet: studio-rpc-usb-uart
     cmake-args: -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
     # The right half only sends key positions. Normal keymap updates require
     # flashing this central image only; rebuilding the peripheral needlessly
