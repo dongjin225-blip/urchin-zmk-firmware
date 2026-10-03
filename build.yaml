@@ -1,6 +1,6 @@
 # Dongle-free Urchin build matrix.
 include:
-  - board: nice_nano@2.0.0
+  - board: nice_nano_v2
     shield: urchin_left
     cmake-args: -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
     # The right half only sends key positions. Normal keymap updates require

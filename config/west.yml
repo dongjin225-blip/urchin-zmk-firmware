@@ -24,9 +24,10 @@ manifest:
   projects:
     - name: zmk
       remote: zmkfirmware
-      # Pin known-good sources so a keymap rebuild does not silently change
-      # the Bluetooth stack or split protocol underneath the firmware.
-      revision: 5b51501fead672c41b5cfb396f3dafe0894bf4e9
+      # Use the same stable ZMK release as the Crosses keyboard.  The newer
+      # Zephyr 4.1 BLE stack repeatedly re-enumerates this older nice!nano as a
+      # Windows HID device after a power cycle.
+      revision: v0.3
       import: app/west.yml
     - name: urchin-zmk-module
       remote: duckyb
