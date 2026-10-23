@@ -562,10 +562,10 @@
 
         num {
             bindings = <
-&dj2         &kp F7  &kp F8  &kp F9  &trans  &trans          &hmr LS(N7) N7              &hmr LS(N8) N8              &hmr LS(N9) N9        &trans
-&dj          &kp F4  &kp F5  &kp F6  &sleep  &trans          &hmr LS(N4) NUMBER_4        &hmr LS(N5) N5              &hmr LS(N6) NUMBER_6  &trans
-&bootloader  &kp F1  &kp F2  &kp F3  &trans  &hmr LS(N0) N0  &hmr LS(NUMBER_1) NUMBER_1  &hmr LS(NUMBER_2) NUMBER_2  &hml LS(N3) NUMBER_3  &bootloader
-                             &trans  &trans  &trans          &trans
+&dj2         &kp F7  &kp F8  &kp F9  &trans  &trans  &hmr LS(N7) N7              &hmr LS(N8) N8              &hmr LS(N9) N9        &trans
+&dj          &kp F4  &kp F5  &kp F6  &sleep  &trans  &hmr LS(N4) NUMBER_4        &hmr LS(N5) N5              &hmr LS(N6) NUMBER_6  &trans
+&bootloader  &kp F1  &kp F2  &kp F3  &trans  &trans  &hmr LS(NUMBER_1) NUMBER_1  &hmr LS(NUMBER_2) NUMBER_2  &hml LS(N3) NUMBER_3  &bootloader
+                             &trans  &trans  &trans  &hmr LS(N0) N0
             >;
         };
 
