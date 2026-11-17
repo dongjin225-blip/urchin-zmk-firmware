@@ -449,7 +449,7 @@
 
         num1 {
             bindings = <&kp NUMBER_1>;
-            key-positions = <24 0>;
+            key-positions = <0 31>;
         };
 
         num2 {
@@ -474,7 +474,7 @@
 
         num6 {
             bindings = <&kp NUMBER_6>;
-            key-positions = <0 23>;
+            key-positions = <0 30>;
         };
 
         num7 {
