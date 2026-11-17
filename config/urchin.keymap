@@ -359,7 +359,7 @@
 
         slash_quet {
             bindings = <&kp LS(SLASH)>;
-            key-positions = <16 32>;
+            key-positions = <16 25>;
         };
 
         minus {
@@ -414,7 +414,7 @@
 
         del_r {
             bindings = <&kp DEL>;
-            key-positions = <16 32>;
+            key-positions = <16 25>;
         };
 
         capture {
@@ -439,7 +439,7 @@
 
         wintab {
             bindings = <&kp LG(TAB)>;
-            key-positions = <2 13 31>;
+            key-positions = <2 13 24>;
         };
 
         caps {
@@ -449,47 +449,47 @@
 
         num1 {
             bindings = <&kp NUMBER_1>;
-            key-positions = <0 31>;
+            key-positions = <0 24>;
         };
 
         num2 {
             bindings = <&kp NUMBER_2>;
-            key-positions = <1 31>;
+            key-positions = <1 24>;
         };
 
         num3 {
             bindings = <&kp NUMBER_3>;
-            key-positions = <2 31>;
+            key-positions = <2 24>;
         };
 
         num4 {
             bindings = <&kp NUMBER_4>;
-            key-positions = <3 31>;
+            key-positions = <3 24>;
         };
 
         num5 {
             bindings = <&kp N5>;
-            key-positions = <4 31>;
+            key-positions = <4 24>;
         };
 
         num6 {
             bindings = <&kp NUMBER_6>;
-            key-positions = <0 30>;
+            key-positions = <0 23>;
         };
 
         num7 {
             bindings = <&kp N7>;
-            key-positions = <1 30>;
+            key-positions = <1 23>;
         };
 
         num8 {
             bindings = <&kp N8>;
-            key-positions = <2 30>;
+            key-positions = <2 23>;
         };
 
         num9 {
             bindings = <&kp N9>;
-            key-positions = <3 30>;
+            key-positions = <3 23>;
         };
 
         num0 {
@@ -504,12 +504,12 @@
 
         altfb4 {
             bindings = <&kp LA(F4)>;
-            key-positions = <3 2 31>;
+            key-positions = <3 2 24>;
         };
 
         wind {
             bindings = <&kp LG(D)>;
-            key-positions = <3 4 31>;
+            key-positions = <3 4 24>;
         };
 
         back {
