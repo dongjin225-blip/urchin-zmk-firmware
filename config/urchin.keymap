@@ -359,7 +359,7 @@
 
         slash_quet {
             bindings = <&kp LS(SLASH)>;
-            key-positions = <16 25>;
+            key-positions = <16 32>;
         };
 
         minus {
@@ -409,12 +409,12 @@
 
         del_l {
             bindings = <&kp DEL>;
-            key-positions = <24 13>;
+            key-positions = <13 31>;
         };
 
         del_r {
             bindings = <&kp DEL>;
-            key-positions = <16 25>;
+            key-positions = <16 32>;
         };
 
         capture {
@@ -439,7 +439,7 @@
 
         wintab {
             bindings = <&kp LG(TAB)>;
-            key-positions = <2 13 24>;
+            key-positions = <2 13 31>;
         };
 
         caps {
@@ -454,22 +454,22 @@
 
         num2 {
             bindings = <&kp NUMBER_2>;
-            key-positions = <24 1>;
+            key-positions = <1 31>;
         };
 
         num3 {
             bindings = <&kp NUMBER_3>;
-            key-positions = <24 2>;
+            key-positions = <2 31>;
         };
 
         num4 {
             bindings = <&kp NUMBER_4>;
-            key-positions = <24 3>;
+            key-positions = <3 31>;
         };
 
         num5 {
             bindings = <&kp N5>;
-            key-positions = <24 4>;
+            key-positions = <4 31>;
         };
 
         num6 {
@@ -479,37 +479,37 @@
 
         num7 {
             bindings = <&kp N7>;
-            key-positions = <1 23>;
+            key-positions = <1 30>;
         };
 
         num8 {
             bindings = <&kp N8>;
-            key-positions = <2 23>;
+            key-positions = <2 30>;
         };
 
         num9 {
             bindings = <&kp N9>;
-            key-positions = <3 23>;
+            key-positions = <3 30>;
         };
 
         num0 {
             bindings = <&kp N0>;
-            key-positions = <4 23>;
+            key-positions = <4 30>;
         };
 
         workman {
             bindings = <&kp LS(LC(ESC))>;
-            key-positions = <24 1 0>;
+            key-positions = <1 0 31>;
         };
 
         altfb4 {
             bindings = <&kp LA(F4)>;
-            key-positions = <24 3 2>;
+            key-positions = <3 2 31>;
         };
 
         wind {
             bindings = <&kp LG(D)>;
-            key-positions = <24 3 4>;
+            key-positions = <3 4 31>;
         };
 
         back {
