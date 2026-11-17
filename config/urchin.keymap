@@ -433,7 +433,7 @@
         };
 
         mute {
-            bindings = <&kp K_MUTE>;
+            bindings = <&kp C_MUTE>;
             key-positions = <26 28>;
         };
 
@@ -533,7 +533,7 @@
         };
 
         mute_left {
-            bindings = <&kp K_MUTE>;
+            bindings = <&kp C_MUTE>;
             key-positions = <23 21>;
         };
     };
