@@ -409,7 +409,7 @@
 
         del_l {
             bindings = <&kp DEL>;
-            key-positions = <13 31>;
+            key-positions = <13 24>;
         };
 
         del_r {
@@ -499,7 +499,7 @@
 
         workman {
             bindings = <&kp LS(LC(ESC))>;
-            key-positions = <1 0 31>;
+            key-positions = <1 0 24>;
         };
 
         altfb4 {
