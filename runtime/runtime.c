@@ -44,6 +44,8 @@ static uint8_t payload[RT_PAYLOAD_BYTES] __aligned(4);
 static uint32_t upload_length,upload_position,upload_crc,upload_generation;
 static bool uploading;
 static bool reboot_pending;
+static bool document_ok=true;
+static int64_t upload_activity;
 static struct rt_store store;
 static uint8_t pool[RT_POOL_BYTES] __aligned(8);
 static size_t pool_position;
@@ -117,7 +119,7 @@ int rt_override(const struct device *dev,const void *config) {
     if(!config)return -ENOMEM;
     for(unsigned i=0;i<override_count;i++)if(overrides[i].dev==dev)return -EEXIST;
     if(override_count>=RT_MAX_BEHAVIORS)return -E2BIG;
-    overrides[override_count].dev=dev;overrides[override_count++].config=config;return 0;
+    memset(&overrides[override_count],0,sizeof(overrides[0]));overrides[override_count].dev=dev;overrides[override_count++].config=config;return 0;
 }
 void rt_remote_override(const struct device *dev,uint32_t param1,uint32_t param2){
     for(unsigned i=0;i<override_count;i++)if(overrides[i].dev==dev){overrides[i].remote=true;overrides[i].param1=param1;overrides[i].param2=param2;return;}
@@ -292,6 +294,15 @@ static void reboot_work(struct k_work *work){atomic_set(&input_state,3);zmk_endp
 #endif
     k_sleep(K_MSEC(50));sys_reboot(SYS_REBOOT_COLD);}
 static K_WORK_DELAYABLE_DEFINE(reboot_task,reboot_work);
+static int abort_upload(void){uploading=false;if(active_bank>=0 && !read_bank(active_bank,&active)){document_ok=false;return -EIO;}return 0;}
+static void upload_timeout_work(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(upload_timeout,upload_timeout_work);
+static void upload_timeout_work(struct k_work *work){
+    k_mutex_lock(&runtime_mutex,K_FOREVER);
+    if(uploading && !reboot_pending){int64_t remaining=10000-(k_uptime_get()-upload_activity);if(remaining<=0)abort_upload();else k_work_reschedule(&upload_timeout,K_MSEC(remaining));}
+    k_mutex_unlock(&runtime_mutex);
+}
+static void touch_upload(void){upload_activity=k_uptime_get();k_work_reschedule(&upload_timeout,K_MSEC(10000));}
 static void build_capabilities(void) {
     capability_length=snprintk(capability_json,sizeof(capability_json),"{\"version\":1,\"planVersion\":2,\"schema\":%u,\"generation\":%u,\"maxPayload\":%u,\"maxDocument\":%u,\"maxLayers\":%u,\"maxCombos\":64,\"maxComboKeys\":8,\"maxConditionals\":32,\"activation\":\"reboot\",\"originalReconfigurations\":%s,\"behaviors\":[",default_crc(),active_bank<0?0:active.generation,RT_PAYLOAD_BYTES,MAX_DOCUMENT,ZMK_KEYMAP_LAYERS_LEN,rt_default_reconfigurations);
     bool comma=false;
@@ -313,7 +324,7 @@ static int commit_upload(void) {
     int err=payload_plan(false);active=saved;if(err)return err;
     store.active_bank=active_bank;store.generation=active_bank<0?0:active.generation;
     err=rt_store_commit(&store,payload,upload_length,upload_generation);if(err)return err;
-    uploading=false;reboot_pending=true;k_work_schedule(&reboot_task,K_MSEC(1200));return 0;
+    uploading=false;k_work_cancel_delayable(&upload_timeout);reboot_pending=true;k_work_schedule(&reboot_task,K_MSEC(1200));return 0;
 }
 
 /* Commands: INFO, READ_CAPS, READ_SOURCE, BEGIN, WRITE, VALIDATE, COMMIT, ABORT,
@@ -329,6 +340,7 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
     if(reboot_pending)error=-EBUSY;
     else if(!area)error=-ENODEV;
     else if(!atomic_get(&input_state) && op!=9)error=-EAGAIN;
+    else if(!document_ok && op!=9)error=-EIO;
     else switch(op){
     case 1:
         if(uploading){error=-EBUSY;break;}
@@ -352,20 +364,20 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
         uint32_t schema=rt_u32(&r),expected=rt_u32(&r),size=rt_u32(&r),crc=rt_u32(&r);
         if(schema!=default_crc() || expected!=generation){error=-ESTALE;break;}
         if(size<8 || size>RT_PAYLOAD_BYTES){error=-E2BIG;break;}
-        uploading=true;upload_length=size;upload_crc=crc;upload_generation=expected;upload_position=0;break;
+        uploading=true;upload_length=size;upload_crc=crc;upload_generation=expected;upload_position=0;touch_upload();break;
     }
     case 5:{
         uint32_t offset=rt_u32(&r);size_t n=r.size-r.pos;
         if(!uploading || offset!=upload_position || n>upload_length-upload_position){error=-EINVAL;break;}
-        memcpy(payload+upload_position,r.data+r.pos,n);upload_position+=n;r.pos=r.size;break;
+        memcpy(payload+upload_position,r.data+r.pos,n);upload_position+=n;r.pos=r.size;touch_upload();break;
     }
     case 6:
         if(!uploading || upload_position!=upload_length){error=-EINVAL;break;}
         if(crc32_ieee(payload,upload_length)!=upload_crc){error=-EBADMSG;break;}
-        {struct bank_header saved=active;active.length=upload_length;error=payload_plan(false);active=saved;}break;
+        {struct bank_header saved=active;active.length=upload_length;error=payload_plan(false);active=saved;touch_upload();}break;
     case 7:error=commit_upload();break;
     case 8:
-        uploading=false;if(active_bank>=0 && !read_bank(active_bank,&active))error=-EIO;break;
+        k_work_cancel_delayable(&upload_timeout);error=abort_upload();break;
     case 9:
         error=flash_area_erase(area,0,2*BANK_SIZE);if(!error){reboot_pending=true;k_work_schedule(&reboot_task,K_MSEC(1200));}break;
     case 10:{
