@@ -182,35 +182,42 @@ setters = {
     struct behavior_input_two_axis_config base={0};base.x_code=(int16_t)rt_u16(r);base.y_code=(int16_t)rt_u16(r);
     base.delay_ms=rt_u16(r);base.time_to_max_speed_ms=rt_u16(r);base.trigger_period_ms=rt_u8(r);base.acceleration_exponent=rt_u8(r);
     if(!base.trigger_period_ms || base.acceleration_exponent>16)return -EINVAL;
-    struct behavior_input_two_axis_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)*cfg=base;
+    struct behavior_input_two_axis_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg)*cfg=base;
 ''',
 "caps_word": '''
     unsigned mods=rt_u8(r),count=rt_u8(r);if(count>64)return -E2BIG;
     struct behavior_caps_word_config *cfg=rt_reader_allocate(r,sizeof(*cfg)+count*sizeof(struct caps_word_continue_item));
-    if(!r->dry && !cfg)return -ENOMEM;if(cfg){cfg->mods=mods;cfg->continuations_count=count;}
+    if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg){cfg->mods=mods;cfg->continuations_count=count;}
     for(unsigned i=0;i<count;i++){uint32_t usage=rt_u32(r);if(cfg)cfg->continuations[i]=(struct caps_word_continue_item){.page=(usage>>16)&255,.id=usage&65535,.implicit_modifiers=usage>>24};}
 ''',
 "key_repeat": '''
     unsigned count=rt_u8(r);if(count>16)return -E2BIG;
     struct behavior_key_repeat_config *cfg=rt_reader_allocate(r,sizeof(*cfg)+count*sizeof(uint16_t));
-    if(!r->dry && !cfg)return -ENOMEM;if(cfg){cfg->index=((const struct behavior_key_repeat_config *)dev->config)->index;cfg->usage_pages_count=count;}
+    if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg){cfg->index=((const struct behavior_key_repeat_config *)dev->config)->index;cfg->usage_pages_count=count;}
     for(unsigned i=0;i<count;i++){uint16_t page=rt_u16(r);if(!page)return -EINVAL;if(cfg)cfg->usage_pages[i]=page;}
 ''',
 "key_toggle": '''
     unsigned mode=rt_u8(r);if(mode>2)return -EINVAL;
-    struct behavior_key_toggle_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)cfg->toggle_mode=mode;
+    struct behavior_key_toggle_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg)cfg->toggle_mode=mode;
 ''',
 "toggle_layer": '''
     unsigned mode=rt_u8(r);if(mode>2)return -EINVAL;
-    struct behavior_tog_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)cfg->toggle_mode=mode;
+    struct behavior_tog_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg)cfg->toggle_mode=mode;
 ''',
 "soft_off": '''
     uint32_t time=rt_u32(r);unsigned flag=rt_u8(r);if(flag>1)return -EINVAL;
-    struct behavior_soft_off_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg){cfg->hold_time_ms=time;cfg->split_peripheral_turn_off_on_press=flag;}
+    struct behavior_soft_off_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg){cfg->hold_time_ms=time;cfg->split_peripheral_turn_off_on_press=flag;}
 ''',
 "reset": '''
     uint32_t type=rt_u32(r);
-    struct behavior_reset_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)cfg->type=(int)type;
+    struct behavior_reset_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg)cfg->type=(int)type;
 ''',
 "hold_tap": '''
     struct behavior_hold_tap_config base=*(const struct behavior_hold_tap_config *)dev->config;
@@ -231,7 +238,8 @@ setters = {
     base.mods=rt_u8(r);unsigned keep=rt_u8(r);base.masked_mods=base.mods & ~keep;
     base.normal_binding=rt_binding(r);base.morph_binding=rt_binding(r);
     struct behavior_mod_morph_config *cfg=r->dry?NULL:rt_allocate(sizeof(base));
-    if(!r->dry && !cfg)return -ENOMEM;if(cfg)*cfg=base;
+    if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg)*cfg=base;
 ''',
 "sticky_key": '''
     struct behavior_sticky_key_config base={0};
@@ -239,7 +247,8 @@ setters = {
     base.quick_release=!!(flags&1);base.lazy=!!(flags&2);base.ignore_modifiers=!!(flags&4);
     base.behavior=rt_binding(r);
     struct behavior_sticky_key_config *cfg=r->dry?NULL:rt_allocate(sizeof(base));
-    if(!r->dry && !cfg)return -ENOMEM;if(cfg)*cfg=base;
+    if(!r->dry && !cfg){return -ENOMEM;}
+    if(cfg)*cfg=base;
 ''',
 "tap_dance": '''
     unsigned term=rt_u32(r),count=rt_u8(r);

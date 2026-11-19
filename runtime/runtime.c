@@ -214,7 +214,8 @@ static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
             uint16_t ids[RT_MAX_BEHAVIORS];
             for(unsigned i=0;i<count;i++){
                 uint8_t kind=rt_u8(&r);uint16_t id=rt_u16(&r),size=rt_u16(&r);
-                for(unsigned j=0;j<i;j++)if(ids[j]==id)return -EEXIST;ids[i]=id;
+                for(unsigned j=0;j<i;j++){if(ids[j]==id)return -EEXIST;}
+                ids[i]=id;
                 const char *name=zmk_behavior_find_behavior_name_from_local_id(id);
                 const struct device *dev=name?zmk_behavior_get_binding(name):NULL;
                 if(!dev || size>r.size-r.pos)return -EINVAL;
@@ -304,7 +305,7 @@ static void upload_timeout_work(struct k_work *work){
 }
 static void touch_upload(void){upload_activity=k_uptime_get();k_work_reschedule(&upload_timeout,K_MSEC(10000));}
 static void build_capabilities(void) {
-    capability_length=snprintk(capability_json,sizeof(capability_json),"{\"version\":1,\"planVersion\":2,\"schema\":%u,\"generation\":%u,\"maxPayload\":%u,\"maxDocument\":%u,\"maxLayers\":%u,\"maxCombos\":64,\"maxComboKeys\":8,\"maxConditionals\":32,\"activation\":\"reboot\",\"originalReconfigurations\":%s,\"behaviors\":[",default_crc(),active_bank<0?0:active.generation,RT_PAYLOAD_BYTES,MAX_DOCUMENT,ZMK_KEYMAP_LAYERS_LEN,rt_default_reconfigurations);
+    capability_length=snprintk(capability_json,sizeof(capability_json),"{\"version\":1,\"planVersion\":2,\"schema\":%u,\"generation\":%u,\"maxPayload\":%u,\"maxDocument\":%u,\"maxLayers\":%u,\"maxLayerName\":%u,\"maxCombos\":64,\"maxComboKeys\":8,\"maxConditionals\":32,\"activation\":\"reboot\",\"originalReconfigurations\":%s,\"behaviors\":[",default_crc(),active_bank<0?0:active.generation,RT_PAYLOAD_BYTES,MAX_DOCUMENT,ZMK_KEYMAP_LAYERS_LEN,CONFIG_ZMK_KEYMAP_LAYER_NAME_MAX_LEN,rt_default_reconfigurations);
     bool comma=false;
     for(unsigned i=0;i<ARRAY_SIZE(rt_labels);i++){
         uint16_t id=zmk_behavior_get_local_id(rt_labels[i].device);if(id==UINT16_MAX)continue;
