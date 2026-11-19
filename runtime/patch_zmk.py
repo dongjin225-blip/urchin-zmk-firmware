@@ -29,7 +29,7 @@ def pristine(repository,relative):
 # The official workflow caches west repositories, including dirty build outputs.
 # Always reconstruct our transformations from the pinned Git objects. Peripheral
 # builds also remove our cached central-only changes before compiling.
-changed_files=["src/combo.c","src/conditional_layer.c","src/main.c","src/behavior.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance","caps_word","key_repeat","key_toggle","toggle_layer","soft_off","reset","input_two_axis"]]
+changed_files=["src/combo.c","src/conditional_layer.c","src/main.c","src/behavior.c","src/event_manager.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance","caps_word","key_repeat","key_toggle","toggle_layer","soft_off","reset","input_two_axis"]]
 def remote_behavior_patch(text,kind):
     name="cfg" if kind=="reset" else "config"
     body=f"    struct behavior_{kind}_config rt_remote=*{name};\n"
@@ -143,6 +143,7 @@ int rt_set_combos(struct rt_reader *r) {
     }
     return r->error;
 }
+void rt_restore_combos(void){memcpy(combos,stock_combos,sizeof(stock_combos));runtime_combo_count=ARRAY_SIZE(stock_combos);memset(combo_lookup,0,sizeof(combo_lookup));for(unsigned i=0;i<runtime_combo_count;i++)initialize_combo(i);}
 '''
     return s.rsplit("#endif", 1)[0] + addition + "\n#endif\n"
 edit("src/combo.c", combo_patch)
@@ -168,11 +169,13 @@ int rt_set_conditionals(struct rt_reader *r) {
     return r->error;
 }
 void rt_refresh_conditionals(void){layer_state_changed_listener(NULL);}
+void rt_restore_conditionals(void){CONDITIONAL_LAYER_CFGS=STOCK_CONDITIONALS;NUM_CONDITIONAL_LAYER_CFGS=ARRAY_SIZE(STOCK_CONDITIONALS);}
 '''
     return s.rsplit("#endif",1)[0]+addition+"\n#endif\n"
 edit("src/conditional_layer.c",conditional_patch)
 edit("src/main.c",lambda s: header+once(s,"    settings_load();","    settings_load();\n    rt_boot();"))
 edit("src/behavior.c",lambda s: header+once(s,"    const struct device *behavior = zmk_behavior_get_binding(binding.behavior_dev);","    const struct device *behavior = zmk_behavior_get_binding(binding.behavior_dev);\n    rt_prepare_binding(&binding);"))
+edit("src/event_manager.c",lambda s: header+once(s,"int zmk_event_manager_raise(zmk_event_t *event) { return zmk_event_manager_handle_from(event, 0); }","int zmk_event_manager_raise(zmk_event_t *event) { if(rt_filter_input(event))return 0; return zmk_event_manager_handle_from(event, 0); }"))
 
 setters = {
 "input_two_axis": '''
@@ -298,6 +301,7 @@ for kind,body in setters.items():
         guarded="#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)" in s
         s=s.replace("zmk_behavior_get_binding(binding->behavior_dev)->config","rt_config(zmk_behavior_get_binding(binding->behavior_dev))")
         s=header+s.replace("dev->config", "rt_config(dev)")
+        if kind=="macro":s=once(s,"    state->press_bindings_count = cfg->count;","    memset(state,0,sizeof(*state));\n    state->press_bindings_count = cfg->count;")
         stem="tog" if kind=="toggle_layer" else kind
         function=f"\nint rt_set_{kind}(const struct device *dev,struct rt_reader *r) {{\n"
         function+=f"    if(dev->api!=&behavior_{stem}_driver_api)return -EINVAL;\n"
@@ -310,6 +314,7 @@ for kind,body in setters.items():
         function+=f" if(dev->api!=&behavior_{stem}_driver_api)return -ENOTSUP;\n"
         function+=f" const struct behavior_{stem}_config *cfg=dev->config;\n"
         function+=exports[kind]+"\n return w->error;\n}\n"
+        if kind=="macro":function+="\nint rt_reset_macro_state(const struct device *dev){if(dev->api!=&behavior_macro_driver_api)return -ENOTSUP;return behavior_macro_init(dev);}\n"
         if not guarded:result=s+function
         else:result=s.rsplit("#endif",1)[0]+function+"\n#endif\n"
         return remote_behavior_patch(result,kind) if kind in ["reset","soft_off"] else result

@@ -2,6 +2,7 @@
 #pragma once
 #include <zephyr/device.h>
 #include <zmk/behavior.h>
+#include <zmk/event_manager.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -33,6 +34,10 @@ void rt_prepare_binding(struct zmk_behavior_binding *binding);
 int rt_set_combos(struct rt_reader *r);
 int rt_set_conditionals(struct rt_reader *r);
 void rt_refresh_conditionals(void);
+void rt_restore_combos(void);
+void rt_restore_conditionals(void);
+int rt_reset_macro_state(const struct device *dev);
+bool rt_filter_input(const zmk_event_t *event);
 int rt_set_hold_tap(const struct device *dev, struct rt_reader *r);
 int rt_set_macro(const struct device *dev, struct rt_reader *r);
 int rt_set_mod_morph(const struct device *dev, struct rt_reader *r);

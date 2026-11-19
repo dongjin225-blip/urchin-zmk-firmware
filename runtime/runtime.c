@@ -11,11 +11,15 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/crc.h>
 #include <zephyr/sys/reboot.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/logging/log.h>
 #include <zmk/studio/rpc.h>
 #include <zmk/runtime_editor.h>
 #include <zmk/keymap.h>
 #include <zmk/matrix.h>
+#include <zmk/endpoints.h>
+#include <zmk/events/position_state_changed.h>
+#include <zmk/events/keycode_state_changed.h>
 #include <pb_encode.h>
 #include <string.h>
 #include <stdio.h>
@@ -56,6 +60,18 @@ static struct {uint16_t from,to;} dependencies[512];
 static unsigned dependency_count;
 static struct {uint16_t id;uint8_t state,height;} dependency_nodes[RT_MAX_BEHAVIORS];
 static unsigned dependency_nodes_count;
+static atomic_t input_state;
+static ATOMIC_DEFINE(boot_pressed,ZMK_KEYMAP_LEN);
+bool rt_filter_input(const zmk_event_t *event){
+    int state=atomic_get(&input_state);if(state==2)return false;
+    const struct zmk_position_state_changed *position=as_zmk_position_state_changed(event);
+    if(state==3)return position || as_zmk_keycode_state_changed(event);
+    if(!position)return false;
+    if(position->position<ZMK_KEYMAP_LEN){if(position->state)atomic_set_bit(boot_pressed,position->position);else atomic_clear_bit(boot_pressed,position->position);}
+    if(state==1){bool held=false;for(unsigned i=0;i<ARRAY_SIZE(boot_pressed);i++)held|=atomic_get(&boot_pressed[i])!=0;if(!held)atomic_set(&input_state,2);}
+    return true;
+}
+static void finish_boot(void){bool held=false;for(unsigned i=0;i<ARRAY_SIZE(boot_pressed);i++)held|=atomic_get(&boot_pressed[i])!=0;atomic_set(&input_state,held?1:2);}
 
 uint8_t rt_u8(struct rt_reader *r) {
     if(r->pos>=r->size){r->error=-EBADMSG;return 0;}
@@ -121,6 +137,7 @@ __weak int rt_export_macro(const struct device *d,struct rt_writer *w){return -E
 __weak int rt_export_mod_morph(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
 __weak int rt_export_sticky_key(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
 __weak int rt_export_tap_dance(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+__weak int rt_reset_macro_state(const struct device *d){return -ENOTSUP;}
 #define RT_WEAK_FAMILY(name) __weak int rt_set_##name(const struct device *d,struct rt_reader *r){return -ENOTSUP;} __weak int rt_export_##name(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
 RT_WEAK_FAMILY(caps_word)
 RT_WEAK_FAMILY(key_repeat)
@@ -248,7 +265,7 @@ static int payload_plan(bool apply) {
 }
 
 int rt_boot(void) {
-    if(flash_area_open(FIXED_PARTITION_ID(runtime_partition),&area))return 0;
+    if(flash_area_open(FIXED_PARTITION_ID(runtime_partition),&area)){finish_boot();return 0;}
     store=(struct rt_store){.context=(void *)area,.read=storage_read,.write=storage_write,.erase=storage_erase,.schema=default_crc(),.active_bank=-1};
     struct bank_header h[2];bool valid[2];
     valid[0]=read_bank(0,&h[0]);valid[1]=read_bank(1,&h[1]);
@@ -258,13 +275,22 @@ int rt_boot(void) {
         if(!read_bank(bank,&active))continue;
         if(payload_plan(false))continue;
         pool_position=0;override_count=0;
-        if(payload_plan(true)){LOG_ERR("Runtime activation failed; default firmware must be restored");return -EINVAL;}
-        active_bank=bank;LOG_INF("Runtime document generation %u loaded",active.generation);return 0;
+        if(payload_plan(true)){
+            LOG_ERR("Runtime activation failed; restoring the prior definition tables");
+            override_count=0;pool_position=0;rt_restore_combos();rt_restore_conditionals();
+            for(unsigned i=0;i<ARRAY_SIZE(rt_labels);i++){const struct device *dev=zmk_behavior_get_binding(rt_labels[i].device);if(dev)rt_reset_macro_state(dev);}
+            zmk_keymap_discard_changes();zmk_keymap_layer_to(0);continue;
+        }
+        active_bank=bank;LOG_INF("Runtime document generation %u loaded",active.generation);finish_boot();return 0;
     }
-    memset(&active,0,sizeof(active));return 0;
+    memset(&active,0,sizeof(active));finish_boot();return 0;
 }
 
-static void reboot_work(struct k_work *work){sys_reboot(SYS_REBOOT_COLD);}
+static void reboot_work(struct k_work *work){atomic_set(&input_state,3);zmk_endpoints_clear_current();
+#if IS_ENABLED(CONFIG_ZMK_POINTING)
+    zmk_endpoints_send_mouse_report();
+#endif
+    k_sleep(K_MSEC(50));sys_reboot(SYS_REBOOT_COLD);}
 static K_WORK_DELAYABLE_DEFINE(reboot_task,reboot_work);
 static void build_capabilities(void) {
     capability_length=snprintk(capability_json,sizeof(capability_json),"{\"version\":1,\"planVersion\":2,\"schema\":%u,\"generation\":%u,\"maxPayload\":%u,\"maxDocument\":%u,\"maxLayers\":%u,\"maxCombos\":64,\"maxComboKeys\":8,\"maxConditionals\":32,\"activation\":\"reboot\",\"originalReconfigurations\":%s,\"behaviors\":[",default_crc(),active_bank<0?0:active.generation,RT_PAYLOAD_BYTES,MAX_DOCUMENT,ZMK_KEYMAP_LAYERS_LEN,rt_default_reconfigurations);
@@ -302,6 +328,7 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
     uint32_t generation=active_bank<0?0:active.generation;
     if(reboot_pending)error=-EBUSY;
     else if(!area)error=-ENODEV;
+    else if(!atomic_get(&input_state) && op!=9)error=-EAGAIN;
     else switch(op){
     case 1:
         if(uploading){error=-EBUSY;break;}
