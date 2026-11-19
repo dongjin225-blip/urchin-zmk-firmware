@@ -102,9 +102,13 @@ for node in edt.nodes:
 with generated.open("a", encoding="utf-8") as handle:
     handle.write("struct rt_label {const char *label,*compatible,*device;};\n")
     handle.write("static const struct rt_label rt_labels[] = {\n" + "\n".join(entries) + "\n};\n")
+    clean_source=re.sub(r"/\*.*?\*/|//[^\n]*","",source.decode("utf-8"),flags=re.S)
+    reconfigurations={name:[match.group(1) for statement in block.split(';') if (match:=re.match(r"\s*([\w,#-]+)\s*(?:=|$)",statement))] for name,block in re.findall(r"&([A-Za-z_]\w*)\s*\{([^{}]*)\}\s*;",clean_source)}
+    handle.write("static const char rt_default_reconfigurations[]="+json.dumps(json.dumps(reconfigurations))+";\n")
 
 def combo_patch(s):
     s = header + s
+    s = once(s,"    int16_t require_prior_idle_ms;","    int32_t require_prior_idle_ms;")
     s = re.sub(r"#define MAX_COMBO_KEYS sizeof\(union \{[^\n]+", "#define MAX_COMBO_KEYS RT_MAX_COMBO_KEYS", s)
     s = once(s, "static const struct combo_cfg combos[] = {", "static const struct combo_cfg stock_combos[] = {")
     s = once(s, "#define COMBO_CHILDREN_COUNT (0 DT_INST_FOREACH_CHILD(0, COMBO_ONE))", "#define COMBO_CHILDREN_COUNT RT_MAX_COMBOS")
@@ -120,9 +124,9 @@ int rt_set_combos(struct rt_reader *r) {
     unsigned previous_len=0;
     for(unsigned i=0;i<count;i++) {
         struct combo_cfg c={0};
-        c.layer_mask=rt_u32(r); c.timeout_ms=rt_u16(r); c.require_prior_idle_ms=rt_u16(r);
+        c.layer_mask=rt_u32(r); c.timeout_ms=(int32_t)rt_u32(r); c.require_prior_idle_ms=(int32_t)rt_u32(r);
         c.slow_release=rt_u8(r); c.key_position_len=rt_u8(r);
-        if(c.key_position_len<2 || c.key_position_len>RT_MAX_COMBO_KEYS || c.key_position_len<previous_len || !c.timeout_ms) return -EINVAL;
+        if(c.key_position_len<2 || c.key_position_len>RT_MAX_COMBO_KEYS || c.key_position_len<previous_len || c.timeout_ms<1 || c.require_prior_idle_ms< -1) return -EINVAL;
         previous_len=c.key_position_len;
         for(unsigned j=0;j<c.key_position_len;j++) {
             c.key_positions[j]=rt_u8(r);
@@ -207,12 +211,12 @@ setters = {
 ''',
 "hold_tap": '''
     struct behavior_hold_tap_config base=*(const struct behavior_hold_tap_config *)dev->config;
-    base.tapping_term_ms=rt_u16(r); base.quick_tap_ms=rt_u16(r); base.require_prior_idle_ms=rt_u16(r);
+    base.tapping_term_ms=(int32_t)rt_u32(r); base.quick_tap_ms=(int32_t)rt_u32(r); base.require_prior_idle_ms=(int32_t)rt_u32(r);
     base.flavor=rt_u8(r); unsigned flags=rt_u8(r);
     base.hold_while_undecided=!!(flags&1);base.hold_while_undecided_linger=!!(flags&2);
     base.retro_tap=!!(flags&4);base.hold_trigger_on_release=!!(flags&8);
     base.hold_behavior_dev=(char *)rt_behavior(r);base.tap_behavior_dev=(char *)rt_behavior(r);
-    unsigned count=rt_u8(r);if(count>ZMK_KEYMAP_LEN || base.flavor>3 || !base.tapping_term_ms) return -EINVAL;
+    unsigned count=rt_u8(r);if(count>ZMK_KEYMAP_LEN || base.flavor>3 || base.tapping_term_ms<1 || base.quick_tap_ms< -1 || base.require_prior_idle_ms< -1) return -EINVAL;
     size_t size=sizeof(base)+count*sizeof(int32_t);
     struct behavior_hold_tap_config *cfg=r->dry?NULL:rt_allocate(size);
     if(!r->dry && !cfg)return -ENOMEM;
@@ -228,14 +232,14 @@ setters = {
 ''',
 "sticky_key": '''
     struct behavior_sticky_key_config base={0};
-    base.release_after_ms=rt_u16(r);unsigned flags=rt_u8(r);
+    base.release_after_ms=rt_u32(r);unsigned flags=rt_u8(r);
     base.quick_release=!!(flags&1);base.lazy=!!(flags&2);base.ignore_modifiers=!!(flags&4);
     base.behavior=rt_binding(r);
     struct behavior_sticky_key_config *cfg=r->dry?NULL:rt_allocate(sizeof(base));
     if(!r->dry && !cfg)return -ENOMEM;if(cfg)*cfg=base;
 ''',
 "tap_dance": '''
-    unsigned term=rt_u16(r),count=rt_u8(r);
+    unsigned term=rt_u32(r),count=rt_u8(r);
     if(!term || !count || count>32)return -EINVAL;
     struct behavior_tap_dance_config *cfg=r->dry?NULL:rt_allocate(sizeof(*cfg)+count*sizeof(struct zmk_behavior_binding));
     if(!r->dry && !cfg)return -ENOMEM;
@@ -243,7 +247,7 @@ setters = {
     for(unsigned i=0;i<count;i++){struct zmk_behavior_binding b=rt_binding(r);if(cfg)cfg->behaviors[i]=b;}
 ''',
 "macro": '''
-    unsigned wait=rt_u16(r),tap=rt_u16(r),count=rt_u16(r);
+    unsigned wait=rt_u32(r),tap=rt_u32(r),count=rt_u16(r);
     if(count>128)return -E2BIG;
     struct behavior_macro_config *cfg=r->dry?NULL:rt_allocate(sizeof(*cfg)+count*sizeof(struct zmk_behavior_binding));
     if(!r->dry && !cfg)return -ENOMEM;
@@ -265,14 +269,14 @@ exports={
 "soft_off": "rt_w32(w,cfg->hold_time_ms);rt_w8(w,cfg->split_peripheral_turn_off_on_press);",
 "reset": "rt_w32(w,cfg->type);",
 "hold_tap": '''
- rt_w16(w,cfg->tapping_term_ms);rt_w16(w,cfg->quick_tap_ms);rt_w16(w,cfg->require_prior_idle_ms);
+ rt_w32(w,cfg->tapping_term_ms);rt_w32(w,cfg->quick_tap_ms);rt_w32(w,cfg->require_prior_idle_ms);
  rt_w8(w,cfg->flavor);rt_w8(w,(cfg->hold_while_undecided?1:0)|(cfg->hold_while_undecided_linger?2:0)|(cfg->retro_tap?4:0)|(cfg->hold_trigger_on_release?8:0));
  rt_wbehavior(w,cfg->hold_behavior_dev);rt_wbehavior(w,cfg->tap_behavior_dev);
  rt_w8(w,cfg->hold_trigger_key_positions_len);
  for(unsigned i=0;i<cfg->hold_trigger_key_positions_len;i++)rt_w8(w,cfg->hold_trigger_key_positions[i]);
 ''',
 "macro": '''
- rt_w16(w,cfg->default_wait_ms);rt_w16(w,cfg->default_tap_ms);rt_w16(w,cfg->count);
+ rt_w32(w,cfg->default_wait_ms);rt_w32(w,cfg->default_tap_ms);rt_w16(w,cfg->count);
  for(unsigned i=0;i<cfg->count;i++)rt_wbinding(w,&cfg->bindings[i]);
 ''',
 "mod_morph": '''
@@ -280,11 +284,11 @@ exports={
  rt_wbinding(w,&cfg->normal_binding);rt_wbinding(w,&cfg->morph_binding);
 ''',
 "sticky_key": '''
- rt_w16(w,cfg->release_after_ms);rt_w8(w,(cfg->quick_release?1:0)|(cfg->lazy?2:0)|(cfg->ignore_modifiers?4:0));
+ rt_w32(w,cfg->release_after_ms);rt_w8(w,(cfg->quick_release?1:0)|(cfg->lazy?2:0)|(cfg->ignore_modifiers?4:0));
  rt_wbinding(w,&cfg->behavior);
 ''',
 "tap_dance": '''
- rt_w16(w,cfg->tapping_term_ms);rt_w8(w,cfg->behavior_count);
+ rt_w32(w,cfg->tapping_term_ms);rt_w8(w,cfg->behavior_count);
  for(unsigned i=0;i<cfg->behavior_count;i++)rt_wbinding(w,&cfg->behaviors[i]);
 '''
 }

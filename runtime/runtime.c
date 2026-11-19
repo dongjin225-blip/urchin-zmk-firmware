@@ -181,7 +181,7 @@ static int process_layers(struct rt_reader *r) {
 
 static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
     struct rt_reader r={.data=bytes,.size=length,.dry=dry};
-    if(rt_u32(&r)!=0x31504d4bu)return -EPROTO;
+    if(rt_u32(&r)!=0x32504d4bu)return -EPROTO;
     if(dry){dependency_count=0;dependency_nodes_count=0;memset(dependency_nodes,0,sizeof(dependency_nodes));}
     bool seen[5]={0};
     while(r.pos<r.size && !r.error){
@@ -267,7 +267,7 @@ int rt_boot(void) {
 static void reboot_work(struct k_work *work){sys_reboot(SYS_REBOOT_COLD);}
 static K_WORK_DELAYABLE_DEFINE(reboot_task,reboot_work);
 static void build_capabilities(void) {
-    capability_length=snprintk(capability_json,sizeof(capability_json),"{\"version\":1,\"schema\":%u,\"generation\":%u,\"maxPayload\":%u,\"maxDocument\":%u,\"maxLayers\":%u,\"maxCombos\":64,\"maxComboKeys\":8,\"maxConditionals\":32,\"activation\":\"reboot\",\"behaviors\":[",default_crc(),active_bank<0?0:active.generation,RT_PAYLOAD_BYTES,MAX_DOCUMENT,ZMK_KEYMAP_LAYERS_LEN);
+    capability_length=snprintk(capability_json,sizeof(capability_json),"{\"version\":1,\"planVersion\":2,\"schema\":%u,\"generation\":%u,\"maxPayload\":%u,\"maxDocument\":%u,\"maxLayers\":%u,\"maxCombos\":64,\"maxComboKeys\":8,\"maxConditionals\":32,\"activation\":\"reboot\",\"originalReconfigurations\":%s,\"behaviors\":[",default_crc(),active_bank<0?0:active.generation,RT_PAYLOAD_BYTES,MAX_DOCUMENT,ZMK_KEYMAP_LAYERS_LEN,rt_default_reconfigurations);
     bool comma=false;
     for(unsigned i=0;i<ARRAY_SIZE(rt_labels);i++){
         uint16_t id=zmk_behavior_get_local_id(rt_labels[i].device);if(id==UINT16_MAX)continue;

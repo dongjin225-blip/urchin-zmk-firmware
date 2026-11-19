@@ -39,7 +39,7 @@
  rt_tog_1: rt_tog_1 {compatible="zmk,behavior-toggle-layer"; #binding-cells=<1>;};
  rt_off_0: rt_off_0 {compatible="zmk,behavior-soft-off"; #binding-cells=<0>;hold-time-ms=<0>;};
  rt_off_1: rt_off_1 {compatible="zmk,behavior-soft-off"; #binding-cells=<0>;hold-time-ms=<0>;};
- rt_reset_0: rt_reset_0 {compatible="zmk,behavior-reset"; #binding-cells=<0>;type=<0>;};
- rt_reset_1: rt_reset_1 {compatible="zmk,behavior-reset"; #binding-cells=<0>;type=<0>;};
+ rt_reset_0: rt_rst0 {compatible="zmk,behavior-reset"; #binding-cells=<0>;type=<0>;};
+ rt_reset_1: rt_rst1 {compatible="zmk,behavior-reset"; #binding-cells=<0>;type=<0>;};
  };
 };
