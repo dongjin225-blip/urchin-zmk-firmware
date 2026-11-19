@@ -307,4 +307,5 @@ cmake=app / "src/studio/CMakeLists.txt"
 c=pristine(root,"app/src/studio/CMakeLists.txt")
 runtime_path=str(here / "runtime.c").replace("\\","/")
 if runtime_path not in c:
-    cmake.write_text(c+f'\ntarget_sources(app PRIVATE "{runtime_path}")\n',encoding="utf-8")
+    storage_path=str(here/"rt_store.c").replace("\\","/")
+    cmake.write_text(c+f'\ntarget_sources(app PRIVATE "{runtime_path}" "{storage_path}")\n',encoding="utf-8")

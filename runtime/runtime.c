@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "generated_defaults.h"
+#include "rt_store.h"
 
 LOG_MODULE_REGISTER(runtime_editor, LOG_LEVEL_INF);
 #define BANK_SIZE 65536u
@@ -30,10 +31,7 @@ LOG_MODULE_REGISTER(runtime_editor, LOG_LEVEL_INF);
 #define MAX_COMMAND 512u
 #define RESPONSE_CHUNK 448u
 
-struct bank_header {
-    uint32_t magic,version,generation,length,crc,document_crc,header_crc;
-    uint32_t reserved[9];
-};
+#define bank_header rt_bank_header
 BUILD_ASSERT(sizeof(struct bank_header)==HEADER_SIZE);
 static const struct flash_area *area;
 static int active_bank=-1;
@@ -41,6 +39,8 @@ static struct bank_header active;
 static uint8_t payload[RT_PAYLOAD_BYTES] __aligned(4);
 static uint32_t upload_length,upload_position,upload_crc,upload_generation;
 static bool uploading;
+static bool reboot_pending;
+static struct rt_store store;
 static uint8_t pool[RT_POOL_BYTES] __aligned(8);
 static size_t pool_position;
 static struct {const struct device *dev;const void *config;bool remote;uint32_t param1,param2;} overrides[RT_MAX_BEHAVIORS];
@@ -232,14 +232,11 @@ static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
 }
 
 static uint32_t default_crc(void){return crc32_ieee(rt_default_document,sizeof(rt_default_document));}
+static int storage_read(void *context,size_t offset,void *out,size_t size){return flash_area_read(context,offset,out,size);}
+static int storage_write(void *context,size_t offset,const void *bytes,size_t size){return flash_area_write(context,offset,bytes,size);}
+static int storage_erase(void *context,size_t offset,size_t size){return flash_area_erase(context,offset,size);}
 static bool read_bank(unsigned bank,struct bank_header *header) {
-    if(flash_area_read(area,bank*BANK_SIZE,header,sizeof(*header)))return false;
-    if(header->magic!=BANK_MAGIC || header->version!=PROTOCOL_VERSION || header->length>RT_PAYLOAD_BYTES || header->length<8 || header->document_crc!=default_crc())return false;
-    uint32_t checksum=header->header_crc;header->header_crc=0;
-    uint32_t calculated=crc32_ieee((void *)header,sizeof(*header));header->header_crc=checksum;
-    if(checksum!=calculated)return false;
-    if(flash_area_read(area,bank*BANK_SIZE+HEADER_SIZE,payload,header->length))return false;
-    return crc32_ieee(payload,header->length)==header->crc;
+    return rt_store_read_bank(&store,bank,header,payload,sizeof(payload))==0;
 }
 static int payload_plan(bool apply) {
     uint32_t plan=sys_get_le32(payload),doc=sys_get_le32(payload+4);
@@ -249,6 +246,7 @@ static int payload_plan(bool apply) {
 
 int rt_boot(void) {
     if(flash_area_open(FIXED_PARTITION_ID(runtime_partition),&area))return 0;
+    store=(struct rt_store){.context=(void *)area,.read=storage_read,.write=storage_write,.erase=storage_erase,.schema=default_crc(),.active_bank=-1};
     struct bank_header h[2];bool valid[2];
     valid[0]=read_bank(0,&h[0]);valid[1]=read_bank(1,&h[1]);
     int first=valid[1] && (!valid[0] || (int32_t)(h[1].generation-h[0].generation)>0)?1:0;
@@ -284,20 +282,9 @@ static int commit_upload(void) {
     struct bank_header saved=active;
     active.length=upload_length;
     int err=payload_plan(false);active=saved;if(err)return err;
-    unsigned bank=active_bank<0?0:1-active_bank;
-    err=flash_area_erase(area,bank*BANK_SIZE,BANK_SIZE);if(err)return err;
-    size_t padded=(upload_length+3)&~3u;memset(payload+upload_length,0xff,padded-upload_length);
-    err=flash_area_write(area,bank*BANK_SIZE+HEADER_SIZE,payload,padded);if(err)return err;
-    // Read-back verification uses bounded scratch space before the commit marker.
-    uint8_t scratch[128];uint32_t crc=0;
-    for(size_t pos=0;pos<upload_length;pos+=sizeof(scratch)){
-        size_t n=MIN(sizeof(scratch),upload_length-pos);err=flash_area_read(area,bank*BANK_SIZE+HEADER_SIZE+pos,scratch,n);if(err)return err;crc=crc32_ieee_update(crc,scratch,n);
-    }
-    if(crc!=upload_crc)return -EIO;
-    struct bank_header h={.magic=BANK_MAGIC,.version=PROTOCOL_VERSION,.generation=upload_generation+1,.length=upload_length,.crc=upload_crc,.document_crc=default_crc()};
-    h.header_crc=crc32_ieee((void *)&h,sizeof(h));
-    err=flash_area_write(area,bank*BANK_SIZE,&h,sizeof(h));if(err)return err;
-    uploading=false;k_work_schedule(&reboot_task,K_MSEC(1200));return 0;
+    store.active_bank=active_bank;store.generation=active_bank<0?0:active.generation;
+    err=rt_store_commit(&store,payload,upload_length,upload_generation);if(err)return err;
+    uploading=false;reboot_pending=true;k_work_schedule(&reboot_task,K_MSEC(1200));return 0;
 }
 
 /* Commands: INFO, READ_CAPS, READ_SOURCE, BEGIN, WRITE, VALIDATE, COMMIT, ABORT,
@@ -310,7 +297,8 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
     struct rt_reader r={.data=command,.size=length,.dry=true};
     unsigned op=rt_u8(&r);int error=0;response_length=8;
     uint32_t generation=active_bank<0?0:active.generation;
-    if(!area)error=-ENODEV;
+    if(reboot_pending)error=-EBUSY;
+    else if(!area)error=-ENODEV;
     else switch(op){
     case 1:
         if(uploading){error=-EBUSY;break;}
@@ -349,7 +337,7 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
     case 8:
         uploading=false;if(active_bank>=0 && !read_bank(active_bank,&active))error=-EIO;break;
     case 9:
-        error=flash_area_erase(area,0,2*BANK_SIZE);if(!error)k_work_schedule(&reboot_task,K_MSEC(1200));break;
+        error=flash_area_erase(area,0,2*BANK_SIZE);if(!error){reboot_pending=true;k_work_schedule(&reboot_task,K_MSEC(1200));}break;
     case 10:{
         uint16_t id=rt_u16(&r);uint32_t offset=rt_u32(&r);
         const char *name=zmk_behavior_find_behavior_name_from_local_id(id);

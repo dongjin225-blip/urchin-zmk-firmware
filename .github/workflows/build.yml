@@ -1,7 +1,16 @@
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
+  runtime-storage-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test atomic runtime storage with injected power cuts
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror runtime/rt_store.c runtime/tests/store_test.c -o /tmp/runtime-store-test
+          /tmp/runtime-store-test
   build:
+    needs: runtime-storage-tests
     # Keep the reusable workflow aligned with the firmware release selected
     # in config/west.yml.  The latest workflow rejects legacy board names even
     # though ZMK v0.3 builds them successfully.
