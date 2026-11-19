@@ -28,6 +28,8 @@ void *rt_allocate(size_t size);
 void *rt_reader_allocate(struct rt_reader *r,size_t size);
 const void *rt_config(const struct device *dev);
 int rt_override(const struct device *dev, const void *config);
+void rt_remote_override(const struct device *dev,uint32_t param1,uint32_t param2);
+void rt_prepare_binding(struct zmk_behavior_binding *binding);
 int rt_set_combos(struct rt_reader *r);
 int rt_set_conditionals(struct rt_reader *r);
 int rt_set_hold_tap(const struct device *dev, struct rt_reader *r);
@@ -41,3 +43,10 @@ int rt_export_macro(const struct device *dev,struct rt_writer *w);
 int rt_export_mod_morph(const struct device *dev,struct rt_writer *w);
 int rt_export_sticky_key(const struct device *dev,struct rt_writer *w);
 int rt_export_tap_dance(const struct device *dev,struct rt_writer *w);
+#define RT_EXTRA_FAMILY(name) int rt_set_##name(const struct device *,struct rt_reader *); int rt_export_##name(const struct device *,struct rt_writer *);
+RT_EXTRA_FAMILY(caps_word)
+RT_EXTRA_FAMILY(key_repeat)
+RT_EXTRA_FAMILY(key_toggle)
+RT_EXTRA_FAMILY(toggle_layer)
+RT_EXTRA_FAMILY(soft_off)
+RT_EXTRA_FAMILY(reset)

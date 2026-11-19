@@ -29,5 +29,17 @@
  rt_dance_1: rt_dance_1 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
  rt_dance_2: rt_dance_2 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
  rt_dance_3: rt_dance_3 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
+ rt_caps_0: rt_caps_0 {compatible="zmk,behavior-caps-word"; #binding-cells=<0>;continue-list=<0x7002d 0x7002a>;};
+ rt_caps_1: rt_caps_1 {compatible="zmk,behavior-caps-word"; #binding-cells=<0>;continue-list=<0x7002d 0x7002a>;};
+ rt_repeat_0: rt_repeat_0 {compatible="zmk,behavior-key-repeat"; #binding-cells=<0>;usage-pages=<7 12>;};
+ rt_repeat_1: rt_repeat_1 {compatible="zmk,behavior-key-repeat"; #binding-cells=<0>;usage-pages=<7 12>;};
+ rt_kt_0: rt_kt_0 {compatible="zmk,behavior-key-toggle"; #binding-cells=<1>;};
+ rt_kt_1: rt_kt_1 {compatible="zmk,behavior-key-toggle"; #binding-cells=<1>;};
+ rt_tog_0: rt_tog_0 {compatible="zmk,behavior-toggle-layer"; #binding-cells=<1>;};
+ rt_tog_1: rt_tog_1 {compatible="zmk,behavior-toggle-layer"; #binding-cells=<1>;};
+ rt_off_0: rt_off_0 {compatible="zmk,behavior-soft-off"; #binding-cells=<0>;hold-time-ms=<0>;};
+ rt_off_1: rt_off_1 {compatible="zmk,behavior-soft-off"; #binding-cells=<0>;hold-time-ms=<0>;};
+ rt_reset_0: rt_reset_0 {compatible="zmk,behavior-reset"; #binding-cells=<0>;type=<0>;};
+ rt_reset_1: rt_reset_1 {compatible="zmk,behavior-reset"; #binding-cells=<0>;type=<0>;};
  };
 };

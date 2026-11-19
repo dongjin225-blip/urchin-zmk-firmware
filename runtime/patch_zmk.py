@@ -29,7 +29,18 @@ def pristine(repository,relative):
 # The official workflow caches west repositories, including dirty build outputs.
 # Always reconstruct our transformations from the pinned Git objects. Peripheral
 # builds also remove our cached central-only changes before compiling.
-changed_files=["src/combo.c","src/conditional_layer.c","src/main.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance"]]
+changed_files=["src/combo.c","src/conditional_layer.c","src/main.c","src/behavior.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance","caps_word","key_repeat","key_toggle","toggle_layer","soft_off","reset"]]
+def remote_behavior_patch(text,kind):
+    name="cfg" if kind=="reset" else "config"
+    body=f"    struct behavior_{kind}_config rt_remote=*{name};\n"
+    body+="    if ((binding->param2 & 0xffff0000u)==0x52540000u) {\n"
+    if kind=="reset":body+="        rt_remote.type=(int)binding->param1;\n"
+    else:body+="        rt_remote.hold_time_ms=binding->param1;rt_remote.split_peripheral_turn_off_on_press=!!(binding->param2&1);\n"
+    body+=f"        {name}=&rt_remote;\n    }}\n"
+    pattern=rf"(    const struct behavior_{kind}_config \*{name} = [^\n]+;\n)"
+    updated,count=re.subn(pattern,lambda match:match.group(1)+body,text)
+    if count!=(1 if kind=="reset" else 2):raise RuntimeError("Remote behavior source did not match "+kind)
+    return updated
 if not enabled:
     for relative in changed_files:
         target=app/relative
@@ -42,6 +53,9 @@ if not enabled:
         target=messages/relative
         if "runtime" in target.read_text(encoding="utf-8"):
             target.write_text(pristine(messages,relative),encoding="utf-8")
+    for kind in ["reset","soft_off"]:
+        relative=f"src/behaviors/behavior_{kind}.c"
+        (app/relative).write_text("/* RUNTIME_EDITOR_PATCH_V1 */\n"+remote_behavior_patch(pristine(root,"app/"+relative),kind),encoding="utf-8")
     raise SystemExit(0)
 head=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
 if head!="edf5c0814fd3ea202e43aad2d68fd32e882a518c":
@@ -153,8 +167,37 @@ int rt_set_conditionals(struct rt_reader *r) {
     return s.rsplit("#endif",1)[0]+addition+"\n#endif\n"
 edit("src/conditional_layer.c",conditional_patch)
 edit("src/main.c",lambda s: header+once(s,"    settings_load();","    settings_load();\n    rt_boot();"))
+edit("src/behavior.c",lambda s: header+once(s,"    const struct device *behavior = zmk_behavior_get_binding(binding.behavior_dev);","    const struct device *behavior = zmk_behavior_get_binding(binding.behavior_dev);\n    rt_prepare_binding(&binding);"))
 
 setters = {
+"caps_word": '''
+    unsigned mods=rt_u8(r),count=rt_u8(r);if(count>64)return -E2BIG;
+    struct behavior_caps_word_config *cfg=rt_reader_allocate(r,sizeof(*cfg)+count*sizeof(struct caps_word_continue_item));
+    if(!r->dry && !cfg)return -ENOMEM;if(cfg){cfg->mods=mods;cfg->continuations_count=count;}
+    for(unsigned i=0;i<count;i++){uint32_t usage=rt_u32(r);if(cfg)cfg->continuations[i]=(struct caps_word_continue_item){.page=(usage>>16)&255,.id=usage&65535,.implicit_modifiers=usage>>24};}
+''',
+"key_repeat": '''
+    unsigned count=rt_u8(r);if(count>16)return -E2BIG;
+    struct behavior_key_repeat_config *cfg=rt_reader_allocate(r,sizeof(*cfg)+count*sizeof(uint16_t));
+    if(!r->dry && !cfg)return -ENOMEM;if(cfg){cfg->index=((const struct behavior_key_repeat_config *)dev->config)->index;cfg->usage_pages_count=count;}
+    for(unsigned i=0;i<count;i++){uint16_t page=rt_u16(r);if(!page)return -EINVAL;if(cfg)cfg->usage_pages[i]=page;}
+''',
+"key_toggle": '''
+    unsigned mode=rt_u8(r);if(mode>2)return -EINVAL;
+    struct behavior_key_toggle_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)cfg->toggle_mode=mode;
+''',
+"toggle_layer": '''
+    unsigned mode=rt_u8(r);if(mode>2)return -EINVAL;
+    struct behavior_tog_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)cfg->toggle_mode=mode;
+''',
+"soft_off": '''
+    uint32_t time=rt_u32(r);unsigned flag=rt_u8(r);if(flag>1)return -EINVAL;
+    struct behavior_soft_off_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg){cfg->hold_time_ms=time;cfg->split_peripheral_turn_off_on_press=flag;}
+''',
+"reset": '''
+    uint32_t type=rt_u32(r);
+    struct behavior_reset_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)cfg->type=(int)type;
+''',
 "hold_tap": '''
     struct behavior_hold_tap_config base=*(const struct behavior_hold_tap_config *)dev->config;
     base.tapping_term_ms=rt_u16(r); base.quick_tap_ms=rt_u16(r); base.require_prior_idle_ms=rt_u16(r);
@@ -202,6 +245,17 @@ setters = {
 '''
 }
 exports={
+"caps_word": '''
+ rt_w8(w,cfg->mods);rt_w8(w,cfg->continuations_count);
+ for(unsigned i=0;i<cfg->continuations_count;i++)rt_w32(w,(cfg->continuations[i].implicit_modifiers<<24)|(cfg->continuations[i].page<<16)|cfg->continuations[i].id);
+''',
+"key_repeat": '''
+ rt_w8(w,cfg->usage_pages_count);for(unsigned i=0;i<cfg->usage_pages_count;i++)rt_w16(w,cfg->usage_pages[i]);
+''',
+"key_toggle": "rt_w8(w,cfg->toggle_mode);",
+"toggle_layer": "rt_w8(w,cfg->toggle_mode);",
+"soft_off": "rt_w32(w,cfg->hold_time_ms);rt_w8(w,cfg->split_peripheral_turn_off_on_press);",
+"reset": "rt_w32(w,cfg->type);",
 "hold_tap": '''
  rt_w16(w,cfg->tapping_term_ms);rt_w16(w,cfg->quick_tap_ms);rt_w16(w,cfg->require_prior_idle_ms);
  rt_w8(w,cfg->flavor);rt_w8(w,(cfg->hold_while_undecided?1:0)|(cfg->hold_while_undecided_linger?2:0)|(cfg->retro_tap?4:0)|(cfg->hold_trigger_on_release?8:0));
@@ -229,18 +283,24 @@ exports={
 for kind,body in setters.items():
     def family_patch(s,kind=kind,body=body):
         body=body.replace("r->dry?NULL:rt_allocate(","rt_reader_allocate(r,")
+        guarded="#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)" in s
+        s=s.replace("zmk_behavior_get_binding(binding->behavior_dev)->config","rt_config(zmk_behavior_get_binding(binding->behavior_dev))")
         s=header+s.replace("dev->config", "rt_config(dev)")
+        stem="tog" if kind=="toggle_layer" else kind
         function=f"\nint rt_set_{kind}(const struct device *dev,struct rt_reader *r) {{\n"
-        function+=f"    if(dev->api!=&behavior_{kind}_driver_api)return -EINVAL;\n"
+        function+=f"    if(dev->api!=&behavior_{stem}_driver_api)return -EINVAL;\n"
         function+=body+"\n    if(r->error)return r->error;\n    if(!r->dry) {int err=rt_override(dev,cfg);if(err)return err;"
         if kind=="macro": function+="behavior_macro_init(dev);"
+        if kind=="reset":function+="rt_remote_override(dev,(uint32_t)cfg->type,0x52540000u);"
+        if kind=="soft_off":function+="rt_remote_override(dev,cfg->hold_time_ms,0x52540000u|(cfg->split_peripheral_turn_off_on_press?1u:0u));"
         function+="}\n    return 0;\n}\n"
         function+=f"\nint rt_export_{kind}(const struct device *dev,struct rt_writer *w) {{\n"
-        function+=f" if(dev->api!=&behavior_{kind}_driver_api)return -ENOTSUP;\n"
-        function+=f" const struct behavior_{kind}_config *cfg=dev->config;\n"
+        function+=f" if(dev->api!=&behavior_{stem}_driver_api)return -ENOTSUP;\n"
+        function+=f" const struct behavior_{stem}_config *cfg=dev->config;\n"
         function+=exports[kind]+"\n return w->error;\n}\n"
-        if kind=="macro":return s+function
-        return s.rsplit("#endif",1)[0]+function+"\n#endif\n"
+        if not guarded:result=s+function
+        else:result=s.rsplit("#endif",1)[0]+function+"\n#endif\n"
+        return remote_behavior_patch(result,kind) if kind in ["reset","soft_off"] else result
     edit(f"src/behaviors/behavior_{kind}.c",family_patch)
 
 cmake=app / "src/studio/CMakeLists.txt"

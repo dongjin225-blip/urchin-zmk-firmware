@@ -43,7 +43,7 @@ static uint32_t upload_length,upload_position,upload_crc,upload_generation;
 static bool uploading;
 static uint8_t pool[RT_POOL_BYTES] __aligned(8);
 static size_t pool_position;
-static struct {const struct device *dev;const void *config;} overrides[RT_MAX_BEHAVIORS];
+static struct {const struct device *dev;const void *config;bool remote;uint32_t param1,param2;} overrides[RT_MAX_BEHAVIORS];
 static unsigned override_count;
 static uint8_t response_bytes[512];
 static size_t response_length;
@@ -103,6 +103,13 @@ int rt_override(const struct device *dev,const void *config) {
     if(override_count>=RT_MAX_BEHAVIORS)return -E2BIG;
     overrides[override_count].dev=dev;overrides[override_count++].config=config;return 0;
 }
+void rt_remote_override(const struct device *dev,uint32_t param1,uint32_t param2){
+    for(unsigned i=0;i<override_count;i++)if(overrides[i].dev==dev){overrides[i].remote=true;overrides[i].param1=param1;overrides[i].param2=param2;return;}
+}
+void rt_prepare_binding(struct zmk_behavior_binding *binding){
+    const struct device *dev=zmk_behavior_get_binding(binding->behavior_dev);
+    for(unsigned i=0;i<override_count;i++)if(overrides[i].dev==dev && overrides[i].remote){binding->param1=overrides[i].param1;binding->param2=overrides[i].param2;return;}
+}
 
 __weak int rt_set_hold_tap(const struct device *d,struct rt_reader *r){return -ENOTSUP;}
 __weak int rt_set_macro(const struct device *d,struct rt_reader *r){return -ENOTSUP;}
@@ -114,6 +121,13 @@ __weak int rt_export_macro(const struct device *d,struct rt_writer *w){return -E
 __weak int rt_export_mod_morph(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
 __weak int rt_export_sticky_key(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
 __weak int rt_export_tap_dance(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+#define RT_WEAK_FAMILY(name) __weak int rt_set_##name(const struct device *d,struct rt_reader *r){return -ENOTSUP;} __weak int rt_export_##name(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+RT_WEAK_FAMILY(caps_word)
+RT_WEAK_FAMILY(key_repeat)
+RT_WEAK_FAMILY(key_toggle)
+RT_WEAK_FAMILY(toggle_layer)
+RT_WEAK_FAMILY(soft_off)
+RT_WEAK_FAMILY(reset)
 
 static int validate_dependency(uint16_t node,uint16_t *stack,unsigned depth) {
     if(depth>=16)return -ELOOP;
@@ -193,6 +207,12 @@ static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
                 case 3:err=rt_set_mod_morph(dev,&child);break;
                 case 4:err=rt_set_sticky_key(dev,&child);break;
                 case 5:err=rt_set_tap_dance(dev,&child);break;
+                case 6:err=rt_set_caps_word(dev,&child);break;
+                case 7:err=rt_set_key_repeat(dev,&child);break;
+                case 8:err=rt_set_key_toggle(dev,&child);break;
+                case 9:err=rt_set_toggle_layer(dev,&child);break;
+                case 10:err=rt_set_soft_off(dev,&child);break;
+                case 11:err=rt_set_reset(dev,&child);break;
                 default:err=-ENOTSUP;
                 }
                 source_behavior=UINT16_MAX;
@@ -336,7 +356,7 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
         const struct device *dev=name?zmk_behavior_get_binding(name):NULL;
         if(!dev){error=-EINVAL;break;}
         struct rt_writer w={.data=exported_config,.size=sizeof(exported_config)};
-        int (*exporters[])(const struct device *,struct rt_writer *)={rt_export_hold_tap,rt_export_macro,rt_export_mod_morph,rt_export_sticky_key,rt_export_tap_dance};
+        int (*exporters[])(const struct device *,struct rt_writer *)={rt_export_hold_tap,rt_export_macro,rt_export_mod_morph,rt_export_sticky_key,rt_export_tap_dance,rt_export_caps_word,rt_export_key_repeat,rt_export_key_toggle,rt_export_toggle_layer,rt_export_soft_off,rt_export_reset};
         unsigned kind=0;
         for(unsigned i=0;i<ARRAY_SIZE(exporters);i++){
             w.pos=0;w.error=0;int result=exporters[i](dev,&w);

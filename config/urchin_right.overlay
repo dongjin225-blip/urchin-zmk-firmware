@@ -1,0 +1,2 @@
+/* Matching behavior devices let central forward runtime reset/power settings. */
+#include "runtime-pool.dtsi"
