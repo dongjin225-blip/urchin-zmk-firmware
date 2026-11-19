@@ -213,7 +213,7 @@ for kind,body in setters.items():
         function+="}\n    return 0;\n}\n"
         function+=f"\nint rt_export_{kind}(const struct device *dev,struct rt_writer *w) {{\n"
         function+=f" if(dev->api!=&behavior_{kind}_driver_api)return -ENOTSUP;\n"
-        function+=f" const struct behavior_{kind}_config *cfg=rt_config(dev);\n"
+        function+=f" const struct behavior_{kind}_config *cfg=dev->config;\n"
         function+=exports[kind]+"\n return w->error;\n}\n"
         if kind=="macro":return s+function
         return s.rsplit("#endif",1)[0]+function+"\n#endif\n"

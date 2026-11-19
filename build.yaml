@@ -3,7 +3,7 @@ include:
   - board: nice_nano_v2
     shield: urchin_left
     snippet: studio-rpc-usb-uart
-    cmake-args: -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_RUNTIME_EDITOR=y
+    cmake-args: -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_RUNTIME_EDITOR=y -DCONFIG_MAIN_STACK_SIZE=4096 -DCONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE=8192
     artifact-name: 1_urchin_left
   # Both halves must run the same ZMK release.  This image is required once
   # for the v0.3 migration; otherwise the peripheral cannot talk to central.

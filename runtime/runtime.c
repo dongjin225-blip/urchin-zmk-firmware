@@ -54,6 +54,8 @@ static K_MUTEX_DEFINE(runtime_mutex);
 static uint16_t source_behavior=UINT16_MAX;
 static struct {uint16_t from,to;} dependencies[512];
 static unsigned dependency_count;
+static struct {uint16_t id;uint8_t state,height;} dependency_nodes[RT_MAX_BEHAVIORS];
+static unsigned dependency_nodes_count;
 
 uint8_t rt_u8(struct rt_reader *r) {
     if(r->pos>=r->size){r->error=-EBADMSG;return 0;}
@@ -116,10 +118,18 @@ __weak int rt_export_tap_dance(const struct device *d,struct rt_writer *w){retur
 static int validate_dependency(uint16_t node,uint16_t *stack,unsigned depth) {
     if(depth>=16)return -ELOOP;
     for(unsigned i=0;i<depth;i++)if(stack[i]==node)return -ELOOP;
+    unsigned entry=0;
+    while(entry<dependency_nodes_count && dependency_nodes[entry].id!=node)entry++;
+    if(entry==dependency_nodes_count)return 0;
+    if(dependency_nodes[entry].state==2)return dependency_nodes[entry].height+depth>=16?-ELOOP:0;
     stack[depth]=node;
+    unsigned height=0;
     for(unsigned i=0;i<dependency_count;i++)if(dependencies[i].from==node){
         int err=validate_dependency(dependencies[i].to,stack,depth+1);if(err)return err;
+        unsigned child=0;while(child<dependency_nodes_count && dependency_nodes[child].id!=dependencies[i].to)child++;
+        height=MAX(height,child<dependency_nodes_count?dependency_nodes[child].height+1:1);
     }
+    dependency_nodes[entry].height=height;dependency_nodes[entry].state=2;
     return 0;
 }
 
@@ -157,7 +167,7 @@ static int process_layers(struct rt_reader *r) {
 static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
     struct rt_reader r={.data=bytes,.size=length,.dry=dry};
     if(rt_u32(&r)!=0x31504d4bu)return -EPROTO;
-    if(dry)dependency_count=0;
+    if(dry){dependency_count=0;dependency_nodes_count=0;memset(dependency_nodes,0,sizeof(dependency_nodes));}
     bool seen[5]={0};
     while(r.pos<r.size && !r.error){
         uint8_t op=rt_u8(&r);if(op<1 || op>4 || seen[op])return -EINVAL;seen[op]=true;
@@ -174,6 +184,7 @@ static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
                 const char *name=zmk_behavior_find_behavior_name_from_local_id(id);
                 const struct device *dev=name?zmk_behavior_get_binding(name):NULL;
                 if(!dev || size>r.size-r.pos)return -EINVAL;
+                if(dry){dependency_nodes[dependency_nodes_count++].id=id;}
                 struct rt_reader child={.data=r.data+r.pos,.size=size,.dry=dry,.allocation=r.allocation};
                 source_behavior=id;
                 switch(kind){
