@@ -8,20 +8,44 @@ import pathlib
 import pickle
 import re
 import shutil
+import subprocess
 import sys
 
 root, messages, here, binary = map(pathlib.Path, sys.argv[1:5])
 app = root / "app"
+enabled=len(sys.argv)<6 or sys.argv[5]=="enabled"
 if not (app / "src/studio/rpc.c").exists():
     raise SystemExit("Expected the pinned ZMK v0.3 source tree")
 
 def edit(relative, transform):
     target = app / relative
-    original = target.read_text(encoding="utf-8")
-    if "/* RUNTIME_EDITOR_PATCH_V1 */" in original:
-        return
+    original = subprocess.check_output(["git","show","HEAD:app/"+relative],cwd=root).decode("utf-8")
     result = transform(original)
     target.write_text("/* RUNTIME_EDITOR_PATCH_V1 */\n" + result, encoding="utf-8")
+
+def pristine(repository,relative):
+    return subprocess.check_output(["git","show","HEAD:"+relative],cwd=repository).decode("utf-8")
+
+# The official workflow caches west repositories, including dirty build outputs.
+# Always reconstruct our transformations from the pinned Git objects. Peripheral
+# builds also remove our cached central-only changes before compiling.
+changed_files=["src/combo.c","src/conditional_layer.c","src/main.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance"]]
+if not enabled:
+    for relative in changed_files:
+        target=app/relative
+        if "/* RUNTIME_EDITOR_PATCH_V1 */" in target.read_text(encoding="utf-8"):
+            target.write_text(pristine(root,"app/"+relative),encoding="utf-8")
+    cmake=app/"src/studio/CMakeLists.txt"
+    if "runtime.c" in cmake.read_text(encoding="utf-8"):
+        cmake.write_text(pristine(root,"app/src/studio/CMakeLists.txt"),encoding="utf-8")
+    for relative in ["proto/zmk/keymap.proto","proto/zmk/keymap.options.in"]:
+        target=messages/relative
+        if "runtime" in target.read_text(encoding="utf-8"):
+            target.write_text(pristine(messages,relative),encoding="utf-8")
+    raise SystemExit(0)
+head=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
+if head!="edf5c0814fd3ea202e43aad2d68fd32e882a518c":
+    raise RuntimeError("Runtime source adapters require the pinned ZMK v0.3 commit")
 
 def once(text, old, new):
     if text.count(old) != 1:
@@ -32,13 +56,13 @@ header = '#include <zmk/runtime_editor.h>\n'
 shutil.copyfile(here / "runtime.h", app / "include/zmk/runtime_editor.h")
 
 proto = messages / "proto/zmk/keymap.proto"
-p = proto.read_text(encoding="utf-8")
+p = pristine(messages,"proto/zmk/keymap.proto")
 if "bytes runtime = 126" not in p:
     p = once(p, "oneof request_type {", "oneof request_type {\n        bytes runtime = 126;")
     p = once(p, "oneof response_type {", "oneof response_type {\n        bytes runtime = 126;")
     proto.write_text(p, encoding="utf-8")
 options = messages / "proto/zmk/keymap.options.in"
-o = options.read_text(encoding="utf-8")
+o = pristine(messages,"proto/zmk/keymap.options.in")
 if "Request.runtime" not in o:
     options.write_text(o + "\nzmk.keymap.Request.runtime max_size:512\nzmk.keymap.Response.runtime max_size:512\n", encoding="utf-8")
 
@@ -220,7 +244,7 @@ for kind,body in setters.items():
     edit(f"src/behaviors/behavior_{kind}.c",family_patch)
 
 cmake=app / "src/studio/CMakeLists.txt"
-c=cmake.read_text(encoding="utf-8")
+c=pristine(root,"app/src/studio/CMakeLists.txt")
 runtime_path=str(here / "runtime.c").replace("\\","/")
 if runtime_path not in c:
     cmake.write_text(c+f'\ntarget_sources(app PRIVATE "{runtime_path}")\n',encoding="utf-8")
