@@ -113,13 +113,15 @@ def conditional_patch(s):
 int rt_set_conditionals(struct rt_reader *r) {
     unsigned count=rt_u8(r);
     if(count>RT_MAX_CONDITIONALS) return -E2BIG;
-    uint32_t seen=0;
+    uint32_t edges[ZMK_KEYMAP_LAYERS_LEN]={0};
     for(unsigned i=0;i<count;i++) {
         uint32_t mask=rt_u32(r); uint8_t target=rt_u8(r);
-        if(target>=ZMK_KEYMAP_LAYERS_LEN || !mask || (mask & BIT(target)) || (seen & BIT(target)) || (mask >> ZMK_KEYMAP_LAYERS_LEN)) return -EINVAL;
-        seen |= BIT(target);
+        if(target>=ZMK_KEYMAP_LAYERS_LEN || !mask || (mask & BIT(target)) || (mask >> ZMK_KEYMAP_LAYERS_LEN)) return -EINVAL;
+        edges[target] |= mask;
         if(!r->dry) runtime_conditionals[i]=(struct conditional_layer_cfg){mask,target};
     }
+    for(unsigned k=0;k<ZMK_KEYMAP_LAYERS_LEN;k++)for(unsigned i=0;i<ZMK_KEYMAP_LAYERS_LEN;i++)if(edges[i]&BIT(k))edges[i]|=edges[k];
+    for(unsigned i=0;i<ZMK_KEYMAP_LAYERS_LEN;i++)if(edges[i]&BIT(i))return -ELOOP;
     if(!r->dry){CONDITIONAL_LAYER_CFGS=runtime_conditionals;NUM_CONDITIONAL_LAYER_CFGS=count;}
     return r->error;
 }
@@ -175,6 +177,31 @@ setters = {
     for(unsigned i=0;i<count;i++){struct zmk_behavior_binding b=rt_binding(r);if(cfg)cfg->bindings[i]=b;}
 '''
 }
+exports={
+"hold_tap": '''
+ rt_w16(w,cfg->tapping_term_ms);rt_w16(w,cfg->quick_tap_ms);rt_w16(w,cfg->require_prior_idle_ms);
+ rt_w8(w,cfg->flavor);rt_w8(w,(cfg->hold_while_undecided?1:0)|(cfg->hold_while_undecided_linger?2:0)|(cfg->retro_tap?4:0)|(cfg->hold_trigger_on_release?8:0));
+ rt_wbehavior(w,cfg->hold_behavior_dev);rt_wbehavior(w,cfg->tap_behavior_dev);
+ rt_w8(w,cfg->hold_trigger_key_positions_len);
+ for(unsigned i=0;i<cfg->hold_trigger_key_positions_len;i++)rt_w8(w,cfg->hold_trigger_key_positions[i]);
+''',
+"macro": '''
+ rt_w16(w,cfg->default_wait_ms);rt_w16(w,cfg->default_tap_ms);rt_w16(w,cfg->count);
+ for(unsigned i=0;i<cfg->count;i++)rt_wbinding(w,&cfg->bindings[i]);
+''',
+"mod_morph": '''
+ rt_w8(w,cfg->mods);rt_w8(w,cfg->mods & ~cfg->masked_mods);
+ rt_wbinding(w,&cfg->normal_binding);rt_wbinding(w,&cfg->morph_binding);
+''',
+"sticky_key": '''
+ rt_w16(w,cfg->release_after_ms);rt_w8(w,(cfg->quick_release?1:0)|(cfg->lazy?2:0)|(cfg->ignore_modifiers?4:0));
+ rt_wbinding(w,&cfg->behavior);
+''',
+"tap_dance": '''
+ rt_w16(w,cfg->tapping_term_ms);rt_w8(w,cfg->behavior_count);
+ for(unsigned i=0;i<cfg->behavior_count;i++)rt_wbinding(w,&cfg->behaviors[i]);
+'''
+}
 for kind,body in setters.items():
     def family_patch(s,kind=kind,body=body):
         body=body.replace("r->dry?NULL:rt_allocate(","rt_reader_allocate(r,")
@@ -184,6 +211,10 @@ for kind,body in setters.items():
         function+=body+"\n    if(r->error)return r->error;\n    if(!r->dry) {int err=rt_override(dev,cfg);if(err)return err;"
         if kind=="macro": function+="behavior_macro_init(dev);"
         function+="}\n    return 0;\n}\n"
+        function+=f"\nint rt_export_{kind}(const struct device *dev,struct rt_writer *w) {{\n"
+        function+=f" if(dev->api!=&behavior_{kind}_driver_api)return -ENOTSUP;\n"
+        function+=f" const struct behavior_{kind}_config *cfg=rt_config(dev);\n"
+        function+=exports[kind]+"\n return w->error;\n}\n"
         if kind=="macro":return s+function
         return s.rsplit("#endif",1)[0]+function+"\n#endif\n"
     edit(f"src/behaviors/behavior_{kind}.c",family_patch)

@@ -48,6 +48,7 @@ static unsigned override_count;
 static uint8_t response_bytes[512];
 static size_t response_length;
 static char capability_json[16384];
+static uint8_t exported_config[2048];
 static size_t capability_length;
 static K_MUTEX_DEFINE(runtime_mutex);
 static uint16_t source_behavior=UINT16_MAX;
@@ -60,6 +61,11 @@ uint8_t rt_u8(struct rt_reader *r) {
 }
 uint16_t rt_u16(struct rt_reader *r){uint16_t a=rt_u8(r);return a|((uint16_t)rt_u8(r)<<8);}
 uint32_t rt_u32(struct rt_reader *r){uint32_t a=rt_u16(r);return a|((uint32_t)rt_u16(r)<<16);}
+void rt_w8(struct rt_writer *w,uint8_t value){if(w->pos>=w->size){w->error=-E2BIG;return;}w->data[w->pos++]=value;}
+void rt_w16(struct rt_writer *w,uint16_t value){rt_w8(w,value);rt_w8(w,value>>8);}
+void rt_w32(struct rt_writer *w,uint32_t value){rt_w16(w,value);rt_w16(w,value>>16);}
+void rt_wbehavior(struct rt_writer *w,const char *name){uint16_t id=zmk_behavior_get_local_id(name);if(id==UINT16_MAX)w->error=-EINVAL;rt_w16(w,id);}
+void rt_wbinding(struct rt_writer *w,const struct zmk_behavior_binding *b){rt_wbehavior(w,b->behavior_dev);rt_w32(w,b->param1);rt_w32(w,b->param2);}
 const char *rt_behavior(struct rt_reader *r) {
     uint16_t id=rt_u16(r);
     const char *name=zmk_behavior_find_behavior_name_from_local_id(id);
@@ -101,6 +107,11 @@ __weak int rt_set_macro(const struct device *d,struct rt_reader *r){return -ENOT
 __weak int rt_set_mod_morph(const struct device *d,struct rt_reader *r){return -ENOTSUP;}
 __weak int rt_set_sticky_key(const struct device *d,struct rt_reader *r){return -ENOTSUP;}
 __weak int rt_set_tap_dance(const struct device *d,struct rt_reader *r){return -ENOTSUP;}
+__weak int rt_export_hold_tap(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+__weak int rt_export_macro(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+__weak int rt_export_mod_morph(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+__weak int rt_export_sticky_key(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
+__weak int rt_export_tap_dance(const struct device *d,struct rt_writer *w){return -ENOTSUP;}
 
 static int validate_dependency(uint16_t node,uint16_t *stack,unsigned depth) {
     if(depth>=16)return -ELOOP;
@@ -308,6 +319,24 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
         uploading=false;if(active_bank>=0 && !read_bank(active_bank,&active))error=-EIO;break;
     case 9:
         error=flash_area_erase(area,0,2*BANK_SIZE);if(!error)k_work_schedule(&reboot_task,K_MSEC(1200));break;
+    case 10:{
+        uint16_t id=rt_u16(&r);uint32_t offset=rt_u32(&r);
+        const char *name=zmk_behavior_find_behavior_name_from_local_id(id);
+        const struct device *dev=name?zmk_behavior_get_binding(name):NULL;
+        if(!dev){error=-EINVAL;break;}
+        struct rt_writer w={.data=exported_config,.size=sizeof(exported_config)};
+        int (*exporters[])(const struct device *,struct rt_writer *)={rt_export_hold_tap,rt_export_macro,rt_export_mod_morph,rt_export_sticky_key,rt_export_tap_dance};
+        unsigned kind=0;
+        for(unsigned i=0;i<ARRAY_SIZE(exporters);i++){
+            w.pos=0;w.error=0;int result=exporters[i](dev,&w);
+            if(!result){kind=i+1;break;}
+            if(result!=-ENOTSUP){error=result;break;}
+        }
+        if(!kind || w.error || offset>w.pos){error=error?error:(w.error?w.error:-ENOTSUP);break;}
+        size_t n=MIN(RESPONSE_CHUNK,w.pos-offset);
+        response_bytes[8]=kind;sys_put_le16(w.pos,response_bytes+9);
+        memcpy(response_bytes+11,exported_config+offset,n);response_length=11+n;break;
+    }
     default:error=-ENOTSUP;
     }
     if(r.error)error=r.error;

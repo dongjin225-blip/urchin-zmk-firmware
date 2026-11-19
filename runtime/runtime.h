@@ -13,6 +13,12 @@
 #define RT_PAYLOAD_BYTES 65472
 
 struct rt_reader { const uint8_t *data; size_t size, pos, allocation; int error; bool dry; };
+struct rt_writer {uint8_t *data;size_t size,pos;int error;};
+void rt_w8(struct rt_writer *w,uint8_t value);
+void rt_w16(struct rt_writer *w,uint16_t value);
+void rt_w32(struct rt_writer *w,uint32_t value);
+void rt_wbehavior(struct rt_writer *w,const char *name);
+void rt_wbinding(struct rt_writer *w,const struct zmk_behavior_binding *binding);
 uint8_t rt_u8(struct rt_reader *r);
 uint16_t rt_u16(struct rt_reader *r);
 uint32_t rt_u32(struct rt_reader *r);
@@ -30,3 +36,8 @@ int rt_set_mod_morph(const struct device *dev, struct rt_reader *r);
 int rt_set_sticky_key(const struct device *dev, struct rt_reader *r);
 int rt_set_tap_dance(const struct device *dev, struct rt_reader *r);
 int rt_boot(void);
+int rt_export_hold_tap(const struct device *dev,struct rt_writer *w);
+int rt_export_macro(const struct device *dev,struct rt_writer *w);
+int rt_export_mod_morph(const struct device *dev,struct rt_writer *w);
+int rt_export_sticky_key(const struct device *dev,struct rt_writer *w);
+int rt_export_tap_dance(const struct device *dev,struct rt_writer *w);
