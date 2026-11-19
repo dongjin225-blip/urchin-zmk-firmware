@@ -1,0 +1,21 @@
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+/ {
+    behaviors {
+        rt_move_0: rt_move_0 {
+            compatible = "zmk,behavior-input-two-axis";
+            #binding-cells = <1>;
+            x-input-code = <INPUT_REL_X>;
+            y-input-code = <INPUT_REL_Y>;
+            time-to-max-speed-ms = <300>;
+        };
+        rt_move_1: rt_move_1 {
+            compatible = "zmk,behavior-input-two-axis";
+            #binding-cells = <1>;
+            x-input-code = <INPUT_REL_X>;
+            y-input-code = <INPUT_REL_Y>;
+            time-to-max-speed-ms = <300>;
+        };
+    };
+    rt_move_listener_0 { compatible = "zmk,input-listener"; device = <&rt_move_0>; };
+    rt_move_listener_1 { compatible = "zmk,input-listener"; device = <&rt_move_1>; };
+};

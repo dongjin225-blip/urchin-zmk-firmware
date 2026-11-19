@@ -1,4 +1,5 @@
 #include "runtime-pool.dtsi"
+#include "runtime-pointing-pool.dtsi"
 
 /* Separate banks preserve the last complete runtime document on power loss.
  * Existing Bluetooth/settings storage and UF2 bootloader keep their addresses. */

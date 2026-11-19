@@ -128,6 +128,7 @@ RT_WEAK_FAMILY(key_toggle)
 RT_WEAK_FAMILY(toggle_layer)
 RT_WEAK_FAMILY(soft_off)
 RT_WEAK_FAMILY(reset)
+RT_WEAK_FAMILY(input_two_axis)
 
 static int validate_dependency(uint16_t node,uint16_t *stack,unsigned depth) {
     if(depth>=16)return -ELOOP;
@@ -213,6 +214,7 @@ static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
                 case 9:err=rt_set_toggle_layer(dev,&child);break;
                 case 10:err=rt_set_soft_off(dev,&child);break;
                 case 11:err=rt_set_reset(dev,&child);break;
+                case 12:err=rt_set_input_two_axis(dev,&child);break;
                 default:err=-ENOTSUP;
                 }
                 source_behavior=UINT16_MAX;
@@ -228,6 +230,7 @@ static int process_plan(const uint8_t *bytes,size_t length,bool dry) {
     if(r.error)return r.error;
     if(!seen[1] || !seen[2] || !seen[3] || !seen[4])return -EINVAL;
     if(dry){uint16_t stack[16];for(unsigned i=0;i<dependency_count;i++){int err=validate_dependency(dependencies[i].from,stack,0);if(err)return err;}}
+    else rt_refresh_conditionals();
     return 0;
 }
 
@@ -240,7 +243,7 @@ static bool read_bank(unsigned bank,struct bank_header *header) {
 }
 static int payload_plan(bool apply) {
     uint32_t plan=sys_get_le32(payload),doc=sys_get_le32(payload+4);
-    if(plan>active.length-8 || doc!=active.length-8-plan || doc>MAX_DOCUMENT)return -EBADMSG;
+    if(plan>active.length-8 || !doc || doc!=active.length-8-plan || doc>MAX_DOCUMENT)return -EBADMSG;
     return process_plan(payload+8,plan,!apply);
 }
 
@@ -344,7 +347,7 @@ static zmk_studio_Response runtime(const zmk_studio_Request *request) {
         const struct device *dev=name?zmk_behavior_get_binding(name):NULL;
         if(!dev){error=-EINVAL;break;}
         struct rt_writer w={.data=exported_config,.size=sizeof(exported_config)};
-        int (*exporters[])(const struct device *,struct rt_writer *)={rt_export_hold_tap,rt_export_macro,rt_export_mod_morph,rt_export_sticky_key,rt_export_tap_dance,rt_export_caps_word,rt_export_key_repeat,rt_export_key_toggle,rt_export_toggle_layer,rt_export_soft_off,rt_export_reset};
+        int (*exporters[])(const struct device *,struct rt_writer *)={rt_export_hold_tap,rt_export_macro,rt_export_mod_morph,rt_export_sticky_key,rt_export_tap_dance,rt_export_caps_word,rt_export_key_repeat,rt_export_key_toggle,rt_export_toggle_layer,rt_export_soft_off,rt_export_reset,rt_export_input_two_axis};
         unsigned kind=0;
         for(unsigned i=0;i<ARRAY_SIZE(exporters);i++){
             w.pos=0;w.error=0;int result=exporters[i](dev,&w);

@@ -32,6 +32,7 @@ void rt_remote_override(const struct device *dev,uint32_t param1,uint32_t param2
 void rt_prepare_binding(struct zmk_behavior_binding *binding);
 int rt_set_combos(struct rt_reader *r);
 int rt_set_conditionals(struct rt_reader *r);
+void rt_refresh_conditionals(void);
 int rt_set_hold_tap(const struct device *dev, struct rt_reader *r);
 int rt_set_macro(const struct device *dev, struct rt_reader *r);
 int rt_set_mod_morph(const struct device *dev, struct rt_reader *r);
@@ -50,3 +51,4 @@ RT_EXTRA_FAMILY(key_toggle)
 RT_EXTRA_FAMILY(toggle_layer)
 RT_EXTRA_FAMILY(soft_off)
 RT_EXTRA_FAMILY(reset)
+RT_EXTRA_FAMILY(input_two_axis)

@@ -29,7 +29,7 @@ def pristine(repository,relative):
 # The official workflow caches west repositories, including dirty build outputs.
 # Always reconstruct our transformations from the pinned Git objects. Peripheral
 # builds also remove our cached central-only changes before compiling.
-changed_files=["src/combo.c","src/conditional_layer.c","src/main.c","src/behavior.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance","caps_word","key_repeat","key_toggle","toggle_layer","soft_off","reset"]]
+changed_files=["src/combo.c","src/conditional_layer.c","src/main.c","src/behavior.c"]+[f"src/behaviors/behavior_{kind}.c" for kind in ["hold_tap","macro","mod_morph","sticky_key","tap_dance","caps_word","key_repeat","key_toggle","toggle_layer","soft_off","reset","input_two_axis"]]
 def remote_behavior_patch(text,kind):
     name="cfg" if kind=="reset" else "config"
     body=f"    struct behavior_{kind}_config rt_remote=*{name};\n"
@@ -163,6 +163,7 @@ int rt_set_conditionals(struct rt_reader *r) {
     if(!r->dry){CONDITIONAL_LAYER_CFGS=runtime_conditionals;NUM_CONDITIONAL_LAYER_CFGS=count;}
     return r->error;
 }
+void rt_refresh_conditionals(void){layer_state_changed_listener(NULL);}
 '''
     return s.rsplit("#endif",1)[0]+addition+"\n#endif\n"
 edit("src/conditional_layer.c",conditional_patch)
@@ -170,6 +171,12 @@ edit("src/main.c",lambda s: header+once(s,"    settings_load();","    settings_l
 edit("src/behavior.c",lambda s: header+once(s,"    const struct device *behavior = zmk_behavior_get_binding(binding.behavior_dev);","    const struct device *behavior = zmk_behavior_get_binding(binding.behavior_dev);\n    rt_prepare_binding(&binding);"))
 
 setters = {
+"input_two_axis": '''
+    struct behavior_input_two_axis_config base={0};base.x_code=(int16_t)rt_u16(r);base.y_code=(int16_t)rt_u16(r);
+    base.delay_ms=rt_u16(r);base.time_to_max_speed_ms=rt_u16(r);base.trigger_period_ms=rt_u8(r);base.acceleration_exponent=rt_u8(r);
+    if(!base.trigger_period_ms || base.acceleration_exponent>16)return -EINVAL;
+    struct behavior_input_two_axis_config *cfg=rt_reader_allocate(r,sizeof(*cfg));if(!r->dry && !cfg)return -ENOMEM;if(cfg)*cfg=base;
+''',
 "caps_word": '''
     unsigned mods=rt_u8(r),count=rt_u8(r);if(count>64)return -E2BIG;
     struct behavior_caps_word_config *cfg=rt_reader_allocate(r,sizeof(*cfg)+count*sizeof(struct caps_word_continue_item));
@@ -245,6 +252,7 @@ setters = {
 '''
 }
 exports={
+"input_two_axis": "rt_w16(w,cfg->x_code);rt_w16(w,cfg->y_code);rt_w16(w,cfg->delay_ms);rt_w16(w,cfg->time_to_max_speed_ms);rt_w8(w,cfg->trigger_period_ms);rt_w8(w,cfg->acceleration_exponent);",
 "caps_word": '''
  rt_w8(w,cfg->mods);rt_w8(w,cfg->continuations_count);
  for(unsigned i=0;i<cfg->continuations_count;i++)rt_w32(w,(cfg->continuations[i].implicit_modifiers<<24)|(cfg->continuations[i].page<<16)|cfg->continuations[i].id);
