@@ -1,0 +1,27 @@
+#include "runtime-pool.dtsi"
+
+/* Separate banks preserve the last complete runtime document on power loss.
+ * Existing Bluetooth/settings storage and UF2 bootloader keep their addresses. */
+&code_partition { reg = <0x26000 0xa6000>; };
+&flash0 {
+    partitions {
+        runtime_partition: partition@cc000 {
+            label = "runtime-editor";
+            reg = <0xcc000 0x20000>;
+        };
+    };
+};
+
+/ {
+    keymap {
+        runtime_layer_3 { status = "reserved"; };
+        runtime_layer_4 { status = "reserved"; };
+        runtime_layer_5 { status = "reserved"; };
+        runtime_layer_6 { status = "reserved"; };
+        runtime_layer_7 { status = "reserved"; };
+        runtime_layer_8 { status = "reserved"; };
+        runtime_layer_9 { status = "reserved"; };
+        runtime_layer_10 { status = "reserved"; };
+        runtime_layer_11 { status = "reserved"; };
+    };
+};

@@ -1,0 +1,6 @@
+config ZMK_RUNTIME_EDITOR
+    bool "USB runtime definitions editor"
+    depends on ZMK_STUDIO && ZMK_SPLIT_ROLE_CENTRAL
+    select FLASH_MAP
+    select REBOOT
+    default n

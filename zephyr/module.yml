@@ -1,3 +1,5 @@
 build:
+  cmake: runtime
+  kconfig: runtime/Kconfig
   settings:
     board_root: .

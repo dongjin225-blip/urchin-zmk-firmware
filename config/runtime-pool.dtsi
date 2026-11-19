@@ -1,0 +1,33 @@
+/* Runtime slots are precompiled devices; user labels are stored in the USB document. */
+/ {
+ behaviors {
+ rt_ht_0: rt_ht_0 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_1: rt_ht_1 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_2: rt_ht_2 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_3: rt_ht_3 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_4: rt_ht_4 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_5: rt_ht_5 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_6: rt_ht_6 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_ht_7: rt_ht_7 { compatible = "zmk,behavior-hold-tap"; #binding-cells = <2>; tapping-term-ms = <200>; bindings = <&kp>, <&kp>; };
+ rt_macro_0: rt_macro_0 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_1: rt_macro_1 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_2: rt_macro_2 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_3: rt_macro_3 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_4: rt_macro_4 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_5: rt_macro_5 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_6: rt_macro_6 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_macro_7: rt_macro_7 { compatible = "zmk,behavior-macro"; #binding-cells = <0>; bindings = <&none>; };
+ rt_morph_0: rt_morph_0 { compatible = "zmk,behavior-mod-morph"; #binding-cells = <0>; bindings = <&none>, <&none>; mods = <0>; };
+ rt_morph_1: rt_morph_1 { compatible = "zmk,behavior-mod-morph"; #binding-cells = <0>; bindings = <&none>, <&none>; mods = <0>; };
+ rt_morph_2: rt_morph_2 { compatible = "zmk,behavior-mod-morph"; #binding-cells = <0>; bindings = <&none>, <&none>; mods = <0>; };
+ rt_morph_3: rt_morph_3 { compatible = "zmk,behavior-mod-morph"; #binding-cells = <0>; bindings = <&none>, <&none>; mods = <0>; };
+ rt_sticky_0: rt_sticky_0 { compatible = "zmk,behavior-sticky-key"; #binding-cells = <1>; release-after-ms = <1000>; bindings = <&kp>; };
+ rt_sticky_1: rt_sticky_1 { compatible = "zmk,behavior-sticky-key"; #binding-cells = <1>; release-after-ms = <1000>; bindings = <&kp>; };
+ rt_sticky_2: rt_sticky_2 { compatible = "zmk,behavior-sticky-key"; #binding-cells = <1>; release-after-ms = <1000>; bindings = <&kp>; };
+ rt_sticky_3: rt_sticky_3 { compatible = "zmk,behavior-sticky-key"; #binding-cells = <1>; release-after-ms = <1000>; bindings = <&kp>; };
+ rt_dance_0: rt_dance_0 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
+ rt_dance_1: rt_dance_1 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
+ rt_dance_2: rt_dance_2 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
+ rt_dance_3: rt_dance_3 { compatible = "zmk,behavior-tap-dance"; #binding-cells = <0>; tapping-term-ms = <200>; bindings = <&none>; };
+ };
+};
